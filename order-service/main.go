@@ -33,6 +33,9 @@ func main() {
     router.HandleFunc("/orders", GetOrders).Methods("GET")
     router.HandleFunc("/orders/{id}", GetOrder).Methods("GET")
 
+    // Add health check endpoint
+    router.HandleFunc("/health", healthCheck).Methods("GET")
+
     serverAddr := fmt.Sprintf("%s:%s", cfg.ServerHost, cfg.ServerPort)
     log.Printf("Order service is running on %s", serverAddr)
     log.Fatal(http.ListenAndServe(serverAddr, router))
@@ -53,4 +56,12 @@ func GetOrder(w http.ResponseWriter, r *http.Request) {
         }
     }
     json.NewEncoder(w).Encode(&Order{})
+}
+
+func healthCheck(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]string{
+        "status": "ok",
+        "service": "order-service",
+    })
 }

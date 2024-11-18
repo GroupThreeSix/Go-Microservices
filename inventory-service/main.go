@@ -10,6 +10,8 @@ import (
 	"errors"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
 type server struct {
@@ -85,6 +87,10 @@ func main() {
 
 	s := grpc.NewServer()
 	proto.RegisterInventoryServiceServer(s, &server{})
+
+	// Register health service
+	healthServer := health.NewServer()
+	grpc_health_v1.RegisterHealthServer(s, healthServer)
 
 	log.Printf("Inventory service is running on port %s", cfg.GrpcPort)
 	if err := s.Serve(lis); err != nil {

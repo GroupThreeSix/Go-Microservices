@@ -1,93 +1,126 @@
 pipeline {
     environment {
-        DOCKER_REGISTRY = "your-registry"
-        BUILD_TAG = "v${BUILD_NUMBER}"
-        DOCKER_CREDENTIALS_ID = 'docker-registry-credentials'
-        KUBE_CONFIG_ID = 'minikube-config'  // ID of the kubeconfig credential in Jenkins
+        DOCKER_REGISTRY = "tuilakhanh"
+        BUILD_TAG = "v${BUILD_NUMBER}-${GIT_COMMIT[0..7]}"
+        DOCKER_CREDENTIALS_ID = 'dockercerd'
+        KUBE_CONFIG_ID = 'minikube-config'
+        PROTO_IMAGE = 'stagex/protoc-gen-go-grpc:latest'
     }
     
     agent any
     
     stages {
-        stage('Build and Push Images') {
+        stage('Generate Protobuf') {
+            agent {
+                docker {
+                    image "${PROTO_IMAGE}"
+                    reuseNode true
+                }
+            }
             steps {
-                script {
-                    docker.withRegistry("https://${DOCKER_REGISTRY}", DOCKER_CREDENTIALS_ID) {
-                        parallel(
-                            "Product Service": {
-                                dir('product-service') {
-                                    def productImage = docker.build("${DOCKER_REGISTRY}/product-service:${BUILD_TAG}")
-                                    productImage.push()
-                                }
-                            },
-                            "Inventory Service": {
-                                dir('inventory-service') {
-                                    def inventoryImage = docker.build("${DOCKER_REGISTRY}/inventory-service:${BUILD_TAG}")
-                                    inventoryImage.push()
-                                }
-                            },
-                            "Order Service": {
-                                dir('order-service') {
-                                    def orderImage = docker.build("${DOCKER_REGISTRY}/order-service:${BUILD_TAG}")
-                                    orderImage.push()
-                                }
-                            },
-                            "API Gateway": {
-                                dir('api-gateway') {
-                                    def gatewayImage = docker.build("${DOCKER_REGISTRY}/api-gateway:${BUILD_TAG}")
-                                    gatewayImage.push()
-                                }
+                sh '''
+                    # Generate protobuf files using Makefile
+                    make proto
+                    
+                    # Fix permissions for generated files
+                    chmod -R 777 */proto
+                '''
+            }
+        }
+        
+        stage('Build and Deploy Services') {
+            parallel {
+                stage('Product Service') {
+                    when {
+                        anyOf {
+                            changeset "product-service/**/*"
+                            changeset "shared/**/*"
+                            changeset "proto/**/*"
+                        }
+                    }
+                    stages {
+                        stage('Build Product Service') {
+                            steps {
+                                buildAndPushImage('product-service')
                             }
-                        )
+                        }
+                        stage('Deploy Product Service') {
+                            steps {
+                                deployService('product-service')
+                            }
+                        }
+                    }
+                }
+                
+                stage('Inventory Service') {
+                    when {
+                        anyOf {
+                            changeset "inventory-service/**/*"
+                            changeset "shared/**/*"
+                            changeset "proto/**/*"
+                        }
+                    }
+                    stages {
+                        stage('Build Inventory Service') {
+                            steps {
+                                buildAndPushImage('inventory-service')
+                            }
+                        }
+                        stage('Deploy Inventory Service') {
+                            steps {
+                                deployService('inventory-service')
+                            }
+                        }
+                    }
+                }
+                
+                stage('Order Service') {
+                    when {
+                        anyOf {
+                            changeset "order-service/**/*"
+                            changeset "shared/**/*"
+                        }
+                    }
+                    stages {
+                        stage('Build Order Service') {
+                            steps {
+                                buildAndPushImage('order-service')
+                            }
+                        }
+                        stage('Deploy Order Service') {
+                            steps {
+                                deployService('order-service')
+                            }
+                        }
+                    }
+                }
+                
+                stage('API Gateway') {
+                    when {
+                        anyOf {
+                            changeset "api-gateway/**/*"
+                            changeset "shared/**/*"
+                        }
+                    }
+                    stages {
+                        stage('Build API Gateway') {
+                            steps {
+                                buildAndPushImage('api-gateway')
+                            }
+                        }
+                        stage('Deploy API Gateway') {
+                            steps {
+                                deployService('api-gateway')
+                            }
+                        }
                     }
                 }
             }
         }
         
-        stage('Deploy to Minikube') {
+        stage('Verify Deployments') {
             steps {
-                withKubeConfig([credentialsId: KUBE_CONFIG_ID]) {
-                    sh '''
-                        # Create namespace
-                        kubectl apply -f k8s/namespaces/namespaces.yaml
-
-                        # Create ConfigMaps
-                        kubectl apply -f k8s/configmaps/config.yaml
-
-                        # Generate deployment files
-                        mkdir -p generated-k8s
-                        for file in k8s/deployments/*.yaml; do
-                            envsubst < $file > "generated-k8s/$(basename $file)"
-                        done
-                        
-                        # Apply Kubernetes configurations
-                        kubectl apply -f k8s/services/services.yaml
-                        kubectl apply -f generated-k8s/
-                        kubectl apply -f k8s/ingress/ingress.yaml
-                        
-                        # Wait for deployments
-                        kubectl -n microservices rollout status deployment/product-service
-                        kubectl -n microservices rollout status deployment/inventory-service
-                        kubectl -n microservices rollout status deployment/api-gateway
-                    '''
-                }
-            }
-        }
-        
-        stage('Verify Deployment') {
-            steps {
-                withKubeConfig([credentialsId: KUBE_CONFIG_ID]) {
-                    sh '''
-                        echo "Service Status:"
-                        kubectl get svc
-                        
-                        echo "\nPod Status:"
-                        kubectl get pods
-                        
-                        echo "\nDeployment Status:"
-                        kubectl get deployments
-                    '''
-                }
+                verifyDeployments()
             }
         }
     }
@@ -97,10 +130,60 @@ pipeline {
             cleanWs()
         }
         success {
-            echo "Deployment to Minikube completed successfully!"
+            echo "Pipeline completed successfully!"
         }
         failure {
-            echo "Deployment to Minikube failed!"
+            echo "Pipeline failed!"
         }
+    }
+}
+
+// Helper functions
+def buildAndPushImage(String serviceName) {
+    script {
+        docker.withRegistry("https://${DOCKER_REGISTRY}", DOCKER_CREDENTIALS_ID) {
+            dir(serviceName) {
+                def serviceImage = docker.build("${DOCKER_REGISTRY}/${serviceName}:${BUILD_TAG}")
+                serviceImage.push()
+                // Also tag as latest
+                serviceImage.push('latest')
+            }
+        }
+    }
+}
+
+def deployService(String serviceName) {
+    withKubeConfig([credentialsId: KUBE_CONFIG_ID]) {
+        sh """
+            # Create namespace if not exists
+            kubectl apply -f k8s/namespace.yml
+            kubectl apply -f k8s/config.yaml
+            
+            # Generate deployment files
+            mkdir -p generated-k8s
+            envsubst < k8s/${serviceName}-services.yaml > generated-k8s/${serviceName}.yaml
+            
+            # Apply Kubernetes configurations
+            kubectl apply -f k8s/services.yaml
+            kubectl apply -f generated-k8s/${serviceName}.yaml
+            
+            # Wait for deployment
+            kubectl -n microservices rollout status deployment/${serviceName}
+        """
+    }
+}
+
+def verifyDeployments() {
+    withKubeConfig([credentialsId: KUBE_CONFIG_ID]) {
+        sh '''
+            echo "Services Status:"
+            kubectl get svc -n microservices
+            
+            echo "\nPods Status:"
+            kubectl get pods -n microservices
+            
+            echo "\nDeployments Status:"
+            kubectl get deployments -n microservices
+        '''
     }
 }

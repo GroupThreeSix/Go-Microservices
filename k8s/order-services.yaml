@@ -1,26 +1,25 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: product-service
+  name: order-service
   namespace: microservices
   labels:
-    app: product-service
+    app: order-service
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: product-service
+      app: order-service
   template:
     metadata:
       labels:
-        app: product-service
+        app: order-service
     spec:
       containers:
-      - name: product-service
-        image: tuilakhanh/product-service:latest
-        imagePullPolicy: Always
+      - name: order-service
+        image: tuilakhanh/order-service:latest
         ports:
-        - containerPort: 8081
+        - containerPort: 8082
         resources:
           requests:
             memory: "256Mi"
@@ -31,24 +30,20 @@ spec:
         readinessProbe:
           httpGet:
             path: /health
-            port: 8081
+            port: 8082
           initialDelaySeconds: 5
           periodSeconds: 10
         livenessProbe:
           httpGet:
             path: /health
-            port: 8081
+            port: 8082
           initialDelaySeconds: 15
           periodSeconds: 20
         env:
         - name: SERVER_PORT
-          value: "8081"
+          value: "8082"
         - name: SERVER_HOST
           value: "0.0.0.0"
-        - name: INVENTORY_SERVICE_HOST
-          value: "inventory-service"
-        - name: INVENTORY_SERVICE_PORT
-          value: "50051"
         - name: APP_ENV
           valueFrom:
             configMapKeyRef:

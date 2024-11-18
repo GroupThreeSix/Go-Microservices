@@ -47,6 +47,9 @@ func main() {
 
 	router := mux.NewRouter()
 
+	// Add health check endpoint
+	router.HandleFunc("/health", healthCheck).Methods("GET")
+
 	// Sample data
 	products = append(products, Product{ID: "1", Name: "Laptop", Price: 999.99})
 	products = append(products, Product{ID: "2", Name: "Mouse", Price: 29.99})
@@ -57,6 +60,14 @@ func main() {
 	serverAddr := fmt.Sprintf("%s:%s", cfg.ServerHost, cfg.ServerPort)
 	log.Printf("Product service is running on %s", serverAddr)
 	log.Fatal(http.ListenAndServe(serverAddr, router))
+}
+
+func healthCheck(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"status": "ok",
+		"service": "product-service",
+	})
 }
 
 func GetProducts(w http.ResponseWriter, r *http.Request) {

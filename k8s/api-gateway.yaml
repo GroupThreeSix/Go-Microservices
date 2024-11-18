@@ -6,7 +6,7 @@ metadata:
   labels:
     app: api-gateway
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: api-gateway
@@ -18,8 +18,9 @@ spec:
       containers:
       - name: api-gateway
         image: ${DOCKER_REGISTRY}/api-gateway:${BUILD_TAG}
+        imagePullPolicy: Always
         ports:
-        - containerPort: 8080
+        - containerPort: 8083
         resources:
           requests:
             memory: "256Mi"
@@ -30,12 +31,31 @@ spec:
         readinessProbe:
           httpGet:
             path: /health
-            port: 8080
+            port: 8083
           initialDelaySeconds: 5
           periodSeconds: 10
         livenessProbe:
           httpGet:
             path: /health
-            port: 8080
+            port: 8083
           initialDelaySeconds: 15
           periodSeconds: 20
+        env:
+        - name: SERVER_PORT
+          value: "8083"
+        - name: SERVER_HOST
+          value: "0.0.0.0"
+        - name: PRODUCT_SERVICE_URL
+          value: "http://product-service:8081"
+        - name: ORDER_SERVICE_URL
+          value: "http://order-service:8082"
+        - name: APP_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: microservices-config
+              key: ENVIRONMENT
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: microservices-config
+              key: LOG_LEVEL

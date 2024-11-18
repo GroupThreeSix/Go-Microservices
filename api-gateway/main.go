@@ -2,6 +2,7 @@ package main
 
 import (
 	"api-gateway/config"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -23,6 +24,9 @@ func main() {
 	// Initialize router
 	router := mux.NewRouter()
 
+	// Add health check endpoint
+	router.HandleFunc("/health", healthCheck).Methods("GET")
+
 	// Routes
 	router.PathPrefix("/products").HandlerFunc(handleProduct)
 	router.PathPrefix("/orders").HandlerFunc(handleOrder)
@@ -30,6 +34,14 @@ func main() {
 	serverAddr := fmt.Sprintf("%s:%s", cfg.ServerHost, cfg.ServerPort)
 	log.Printf("API Gateway is running on %s", serverAddr)
 	log.Fatal(http.ListenAndServe(serverAddr, router))
+}
+
+func healthCheck(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"status": "ok",
+		"service": "api-gateway",
+	})
 }
 
 func handleProduct(w http.ResponseWriter, r *http.Request) {

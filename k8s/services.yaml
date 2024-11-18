@@ -29,6 +29,20 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  name: order-service
+  namespace: microservices
+spec:
+  selector:
+    app: order-service
+  ports:
+  - name: http
+    port: 8082
+    targetPort: 8082
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
   name: api-gateway
   namespace: microservices
 spec:
@@ -36,6 +50,6 @@ spec:
     app: api-gateway
   ports:
   - name: http
-    port: 8080
-    targetPort: 8080
+    port: 8083
+    targetPort: 8083
   type: NodePort

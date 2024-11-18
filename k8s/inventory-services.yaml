@@ -18,6 +18,7 @@ spec:
       containers:
       - name: inventory-service
         image: ${DOCKER_REGISTRY}/inventory-service:${BUILD_TAG}
+        imagePullPolicy: Always
         ports:
         - containerPort: 50051
         resources:
@@ -37,3 +38,19 @@ spec:
             port: 50051
           initialDelaySeconds: 15
           periodSeconds: 20
+        env:
+        - name: GRPC_PORT
+          value: "50051"
+        - name: GRPC_HOST
+          value: "0.0.0.0"
+        - name: APP_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: microservices-config
+              key: ENVIRONMENT
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: microservices-config
+              key: LOG_LEVEL
+          
