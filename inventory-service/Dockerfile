@@ -16,7 +16,6 @@ FROM alpine
 
 WORKDIR /app
 COPY --from=builder /app/main /app
-COPY --from=builder /app/.env /app
 
 ARG GRPC_PORT=50051
 ENV GRPC_PORT=${GRPC_PORT}

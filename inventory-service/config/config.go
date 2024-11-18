@@ -1,28 +1,18 @@
 package config
 
-import (
-	"github.com/spf13/viper"
-)
+import "github.com/caarlos0/env/v10"
 
 type Config struct {
-	GrpcPort string `mapstructure:"GRPC_PORT"`
-	GrpcHost string `mapstructure:"GRPC_HOST"`
-	AppEnv   string `mapstructure:"APP_ENV"`
-	LogLevel string `mapstructure:"LOG_LEVEL"`
+	GrpcPort string `env:"GRPC_PORT" envDefault:"50051"`
+	GrpcHost string `env:"GRPC_HOST" envDefault:"0.0.0.0"`
+	AppEnv   string `env:"APP_ENV" envDefault:"development"`
+	LogLevel string `env:"LOG_LEVEL" envDefault:"info"`
 }
 
-func LoadConfig() (config Config, err error) {
-	viper.AddConfigPath(".")
-	viper.SetConfigName(".env")
-	viper.SetConfigType("env")
-
-	viper.AutomaticEnv()
-
-	err = viper.ReadInConfig()
-	if err != nil {
-		return
+func LoadConfig() (Config, error) {
+	cfg := Config{}
+	if err := env.Parse(&cfg); err != nil {
+		return cfg, err
 	}
-
-	err = viper.Unmarshal(&config)
-	return
+	return cfg, nil
 }

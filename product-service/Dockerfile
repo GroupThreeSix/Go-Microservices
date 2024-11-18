@@ -15,7 +15,6 @@ FROM alpine
 WORKDIR /app
 
 COPY --from=builder /app/main /app/
-COPY --from=builder /app/.env /app
 
 # Use ARG for build-time variables
 ARG SERVER_PORT=8081

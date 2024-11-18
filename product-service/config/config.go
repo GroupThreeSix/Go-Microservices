@@ -1,30 +1,20 @@
 package config
 
-import (
-	"github.com/spf13/viper"
-)
+import "github.com/caarlos0/env/v11"
 
 type Config struct {
-	ServerPort           string `mapstructure:"SERVER_PORT"`
-	ServerHost           string `mapstructure:"SERVER_HOST"`
-	InventoryServiceHost string `mapstructure:"INVENTORY_SERVICE_HOST"`
-	InventoryServicePort string `mapstructure:"INVENTORY_SERVICE_PORT"`
-	AppEnv               string `mapstructure:"APP_ENV"`
-	LogLevel             string `mapstructure:"LOG_LEVEL"`
+	ServerPort           string `env:"SERVER_PORT" envDefault:"8081"`
+	ServerHost           string `env:"SERVER_HOST" envDefault:"0.0.0.0"`
+	InventoryServiceHost string `env:"INVENTORY_SERVICE_HOST" envDefault:"inventory-service"`
+	InventoryServicePort string `env:"INVENTORY_SERVICE_PORT" envDefault:"50051"`
+	AppEnv               string `env:"APP_ENV" envDefault:"development"`
+	LogLevel             string `env:"LOG_LEVEL" envDefault:"info"`
 }
 
-func LoadConfig() (config Config, err error) {
-	viper.AddConfigPath(".")
-	viper.SetConfigName(".env")
-	viper.SetConfigType("env")
-
-	viper.AutomaticEnv()
-
-	err = viper.ReadInConfig()
-	if err != nil {
-		return
+func LoadConfig() (Config, error) {
+	cfg := Config{}
+	if err := env.Parse(&cfg); err != nil {
+		return cfg, err
 	}
-
-	err = viper.Unmarshal(&config)
-	return
+	return cfg, nil
 }
