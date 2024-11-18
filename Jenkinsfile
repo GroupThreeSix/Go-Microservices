@@ -4,7 +4,6 @@ pipeline {
         BUILD_TAG = "v${BUILD_NUMBER}-${GIT_COMMIT[0..7]}"
         DOCKER_CREDENTIALS_ID = 'dockercerd'
         KUBE_CONFIG_ID = 'minikube-config'
-        PROTO_IMAGE = 'stagex/protoc-gen-go-grpc:latest'
     }
     
     agent any
@@ -12,17 +11,10 @@ pipeline {
     stages {
         stage('Generate Protobuf') {
             steps {
-                script {
-                    docker.image("${PROTO_IMAGE}").inside {
-                        sh '''
-                            # Generate protobuf files using Makefile
-                            make proto
-                            
-                            # Fix permissions for generated files
-                            chmod -R 777 */proto
-                        '''
-                    }
-                }
+                sh '''
+                    chmod +x scripts/gen-proto.sh
+                    ./scripts/gen-proto.sh
+                '''
             }
         }
         
