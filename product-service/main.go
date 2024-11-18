@@ -55,7 +55,10 @@ func main() {
 	products = append(products, Product{ID: "2", Name: "Mouse", Price: 29.99})
 
 	router.HandleFunc("/products", GetProducts).Methods("GET")
-	router.HandleFunc("/products/{id}", GetProduct).Methods("GET")
+    router.HandleFunc("/products/{id}", GetProduct).Methods("GET")
+    router.HandleFunc("/products", CreateProduct).Methods("POST")
+    router.HandleFunc("/products/{id}", UpdateProduct).Methods("PUT")
+    router.HandleFunc("/products/{id}", DeleteProduct).Methods("DELETE")
 
 	serverAddr := fmt.Sprintf("%s:%s", cfg.ServerHost, cfg.ServerPort)
 	log.Printf("Product service is running on %s", serverAddr)
@@ -103,9 +106,103 @@ func GetProduct(w http.ResponseWriter, r *http.Request) {
 
 	for _, item := range products {
 		if item.ID == params["id"] {
-			json.NewEncoder(w).Encode(item)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+
+			resp, err := inventoryClient.CheckStock(ctx, &proto.StockRequest{ProductId: item.ID})
+			if err != nil {
+				log.Printf("Error checking stock for product %s: %v", params["id"], err)
+			}
+
+			enrichedProduct := Product{
+				ID:       item.ID,
+				Name:     item.Name,
+				Price:    item.Price,
+				InStock:  resp.InStock,
+				Quantity: resp.Quantity,
+			}
+
+			json.NewEncoder(w).Encode(enrichedProduct)
 			return
 		}
 	}
+	
 	json.NewEncoder(w).Encode(&Product{})
+}
+
+func CreateProduct(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "application/json")
+    var product Product
+    json.NewDecoder(r.Body).Decode(&product)
+
+    // Add to inventory
+    ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+    defer cancel()
+    
+    _, err := inventoryClient.AddStock(ctx, &proto.AddStockRequest{
+        ProductId: product.ID,
+        Quantity: product.Quantity,
+    })
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    products = append(products, product)
+    json.NewEncoder(w).Encode(product)
+}
+
+func UpdateProduct(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "application/json")
+    params := mux.Vars(r)
+    var updatedProduct Product
+    json.NewDecoder(r.Body).Decode(&updatedProduct)
+
+    for i, item := range products {
+        if item.ID == params["id"] {
+            // Update inventory
+            ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+            defer cancel()
+            
+            _, err := inventoryClient.UpdateStock(ctx, &proto.UpdateStockRequest{
+                ProductId: params["id"],
+                Quantity: updatedProduct.Quantity,
+            })
+            if err != nil {
+                http.Error(w, err.Error(), http.StatusInternalServerError)
+                return
+            }
+
+            products[i] = updatedProduct
+            json.NewEncoder(w).Encode(updatedProduct)
+            return
+        }
+    }
+    http.Error(w, "Product not found", http.StatusNotFound)
+}
+
+func DeleteProduct(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "application/json")
+    params := mux.Vars(r)
+
+    for i, item := range products {
+        if item.ID == params["id"] {
+            // Delete from inventory
+            ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+            defer cancel()
+            
+            _, err := inventoryClient.DeleteStock(ctx, &proto.StockRequest{
+                ProductId: params["id"],
+            })
+            if err != nil {
+                http.Error(w, err.Error(), http.StatusInternalServerError)
+                return
+            }
+
+            products = append(products[:i], products[i+1:]...)
+            w.WriteHeader(http.StatusNoContent)
+            return
+        }
+    }
+    http.Error(w, "Product not found", http.StatusNotFound)
 }

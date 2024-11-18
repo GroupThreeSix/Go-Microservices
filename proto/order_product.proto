@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package orderproduct;
+option go_package = "./proto/orderproduct";
+
+service OrderProductService {
+    rpc ValidateProducts(ValidateProductsRequest) returns (ValidateProductsResponse) {}
+    rpc UpdateProductStock(UpdateStockRequest) returns (UpdateStockResponse) {}
+}
+
+message ValidateProductsRequest {
+    repeated string product_ids = 1;
+}
+
+message ValidateProductsResponse {
+    bool valid = 1;
+    repeated ProductInfo products = 2;
+    string error = 3;
+}
+
+message ProductInfo {
+    string id = 1;
+    string name = 2;
+    double price = 3;
+    bool in_stock = 4;
+    int32 quantity = 5;
+}
+
+message UpdateStockRequest {
+    repeated OrderItem items = 1;
+}
+
+message OrderItem {
+    string product_id = 1;
+    int32 quantity = 2;
+}
+
+message UpdateStockResponse {
+    bool success = 1;
+    string error = 2;
+}
