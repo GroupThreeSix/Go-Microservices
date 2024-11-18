@@ -53,12 +53,12 @@ services:
       context: ./api-gateway
       dockerfile: Dockerfile
       args:
-      - SERVER_PORT=8080
+      - SERVER_PORT=8083
     container_name: api-gateway
     env_file:
       - ./api-gateway/.env
     ports:
-      - 8080:8080
+      - 8083:8083
     networks:
       - microservices-network
     depends_on:

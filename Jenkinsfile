@@ -3,7 +3,7 @@ pipeline {
         DOCKER_REGISTRY = "tuilakhanh"
         BUILD_TAG = "v${BUILD_NUMBER}-${GIT_COMMIT[0..7]}"
         DOCKER_CREDENTIALS_ID = 'dockercerd'
-        KUBE_CONFIG_ID = 'minikube-config'
+        // KUBE_CONFIG_ID = 'minikube-config'
     }
     
     agent any
@@ -21,13 +21,13 @@ pipeline {
         stage('Build and Deploy Services') {
             parallel {
                 stage('Product Service') {
-                    when {
-                        anyOf {
-                            changeset "product-service/**/*"
-                            changeset "shared/**/*"
-                            changeset "proto/**/*"
-                        }
-                    }
+                    // when {
+                    //     anyOf {
+                    //         changeset "product-service/**/*"
+                    //         changeset "shared/**/*"
+                    //         changeset "proto/**/*"
+                    //     }
+                    // }
                     stages {
                         stage('Build Product Service') {
                             steps {
@@ -43,13 +43,13 @@ pipeline {
                 }
                 
                 stage('Inventory Service') {
-                    when {
-                        anyOf {
-                            changeset "inventory-service/**/*"
-                            changeset "shared/**/*"
-                            changeset "proto/**/*"
-                        }
-                    }
+                    // when {
+                    //     anyOf {
+                    //         changeset "inventory-service/**/*"
+                    //         changeset "shared/**/*"
+                    //         changeset "proto/**/*"
+                    //     }
+                    // }
                     stages {
                         stage('Build Inventory Service') {
                             steps {
@@ -65,12 +65,12 @@ pipeline {
                 }
                 
                 stage('Order Service') {
-                    when {
-                        anyOf {
-                            changeset "order-service/**/*"
-                            changeset "shared/**/*"
-                        }
-                    }
+                    // when {
+                    //     anyOf {
+                    //         changeset "order-service/**/*"
+                    //         changeset "shared/**/*"
+                    //     }
+                    // }
                     stages {
                         stage('Build Order Service') {
                             steps {
@@ -86,12 +86,12 @@ pipeline {
                 }
                 
                 stage('API Gateway') {
-                    when {
-                        anyOf {
-                            changeset "api-gateway/**/*"
-                            changeset "shared/**/*"
-                        }
-                    }
+                    // when {
+                    //     anyOf {
+                    //         changeset "api-gateway/**/*"
+                    //         changeset "shared/**/*"
+                    //     }
+                    // }
                     stages {
                         stage('Build API Gateway') {
                             steps {
@@ -108,11 +108,11 @@ pipeline {
             }
         }
         
-        stage('Verify Deployments') {
-            steps {
-                verifyDeployments()
-            }
-        }
+        // stage('Verify Deployments') {
+        //     steps {
+        //         verifyDeployments()
+        //     }
+        // }
     }
     
     post {
@@ -143,24 +143,24 @@ def buildAndPushImage(String serviceName) {
 }
 
 def deployService(String serviceName) {
-    withKubeConfig([credentialsId: KUBE_CONFIG_ID]) {
-        sh """
-            # Create namespace if not exists
-            kubectl apply -f k8s/namespace.yml
-            kubectl apply -f k8s/config.yaml
+    // withKubeConfig([credentialsId: KUBE_CONFIG_ID]) {
+    //     sh """
+    //         # Create namespace if not exists
+    //         kubectl apply -f k8s/namespace.yml
+    //         kubectl apply -f k8s/config.yaml
             
-            # Generate deployment files
-            mkdir -p generated-k8s
-            envsubst < k8s/${serviceName}-services.yaml > generated-k8s/${serviceName}.yaml
+    //         # Generate deployment files
+    //         mkdir -p generated-k8s
+    //         envsubst < k8s/${serviceName}-services.yaml > generated-k8s/${serviceName}.yaml
             
-            # Apply Kubernetes configurations
-            kubectl apply -f k8s/services.yaml
-            kubectl apply -f generated-k8s/${serviceName}.yaml
+    //         # Apply Kubernetes configurations
+    //         kubectl apply -f k8s/services.yaml
+    //         kubectl apply -f generated-k8s/${serviceName}.yaml
             
-            # Wait for deployment
-            kubectl -n microservices rollout status deployment/${serviceName}
-        """
-    }
+    //         # Wait for deployment
+    //         kubectl -n microservices rollout status deployment/${serviceName}
+    //     """
+    // }
 }
 
 def verifyDeployments() {
