@@ -3,7 +3,10 @@ pipeline {
         DOCKER_REGISTRY = "tuilakhanh"
         BUILD_TAG = "v${BUILD_NUMBER}-${GIT_COMMIT[0..7]}"
         DOCKER_CREDENTIALS_ID = 'dockercerd'
-        // KUBE_CONFIG_ID = 'minikube-config'
+        KUBE_CONFIG_ID = 'minikube-config'
+        KUBE_CLUSTER_NAME = 'minikube'
+        KUBE_CONTEXT_NAME = 'minikube'
+        KUBE_SERVER_URL = 'https://192.168.39.206:8443'
     }
     
     agent any
@@ -142,28 +145,28 @@ def buildAndPushImage(String serviceName) {
 }
 
 def deployService(String serviceName) {
-    // withKubeConfig([credentialsId: KUBE_CONFIG_ID]) {
-    //     sh """
-    //         # Create namespace if not exists
-    //         kubectl apply -f k8s/namespace.yml
-    //         kubectl apply -f k8s/config.yaml
+    withKubeConfig(clusterName: KUBE_CLUSTER_NAME, contextName: KUBE_CONTEXT_NAME, credentialsId: KUBE_CONFIG_ID, serverUrl: KUBE_SERVER_URL) {
+        sh """
+            # Create namespace if not exists
+            kubectl apply -f k8s/namespace.yml
+            kubectl apply -f k8s/config.yaml
             
-    //         # Generate deployment files
-    //         mkdir -p generated-k8s
-    //         envsubst < k8s/${serviceName}-services.yaml > generated-k8s/${serviceName}.yaml
+            # Generate deployment files
+            mkdir -p generated-k8s
+            envsubst < k8s/${serviceName}-services.yaml > generated-k8s/${serviceName}.yaml
             
-    //         # Apply Kubernetes configurations
-    //         kubectl apply -f k8s/services.yaml
-    //         kubectl apply -f generated-k8s/${serviceName}.yaml
+            # Apply Kubernetes configurations
+            kubectl apply -f k8s/services.yaml
+            kubectl apply -f generated-k8s/${serviceName}.yaml
             
-    //         # Wait for deployment
-    //         kubectl -n microservices rollout status deployment/${serviceName}
-    //     """
-    // }
+            # Wait for deployment
+            kubectl -n microservices rollout status deployment/${serviceName}
+        """
+    }
 }
 
 def verifyDeployments() {
-    withKubeConfig([credentialsId: KUBE_CONFIG_ID]) {
+    withKubeConfig(clusterName: KUBE_CLUSTER_NAME, contextName: KUBE_CONTEXT_NAME, credentialsId: KUBE_CONFIG_ID, serverUrl: KUBE_SERVER_URL) {
         sh '''
             echo "Services Status:"
             kubectl get svc -n microservices
