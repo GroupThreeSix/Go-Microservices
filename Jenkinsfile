@@ -131,11 +131,10 @@ pipeline {
 // Helper functions
 def buildAndPushImage(String serviceName) {
     script {
-        docker.withRegistry("https://${DOCKER_REGISTRY}", DOCKER_CREDENTIALS_ID) {
+        docker.withRegistry("", DOCKER_CREDENTIALS_ID) {
             dir(serviceName) {
                 def serviceImage = docker.build("${DOCKER_REGISTRY}/${serviceName}:${BUILD_TAG}")
                 serviceImage.push()
-                // Also tag as latest
                 serviceImage.push('latest')
             }
         }
