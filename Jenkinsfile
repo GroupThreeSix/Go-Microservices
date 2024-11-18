@@ -11,20 +11,18 @@ pipeline {
     
     stages {
         stage('Generate Protobuf') {
-            agent {
-                docker {
-                    image "${PROTO_IMAGE}"
-                    reuseNode true
-                }
-            }
             steps {
-                sh '''
-                    # Generate protobuf files using Makefile
-                    make proto
-                    
-                    # Fix permissions for generated files
-                    chmod -R 777 */proto
-                '''
+                script {
+                    docker.image("${PROTO_IMAGE}").inside {
+                        sh '''
+                            # Generate protobuf files using Makefile
+                            make proto
+                            
+                            # Fix permissions for generated files
+                            chmod -R 777 */proto
+                        '''
+                    }
+                }
             }
         }
         
