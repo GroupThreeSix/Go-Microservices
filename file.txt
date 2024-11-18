@@ -1,0 +1,1537 @@
+./Makefile
+---
+.PHONY: proto clean build run
+
+# Generate protobuf code
+proto:
+	@echo "Generating protobuf code..."
+	@for service in product-service inventory-service; do \
+		protoc --proto_path=proto \
+			--go_out=$$service/proto --go_opt=paths=source_relative \
+			--go-grpc_out=$$service/proto --go-grpc_opt=paths=source_relative \
+			proto/*.proto; \
+	done
+
+# Clean generated code
+clean:
+	@echo "Cleaning generated code..."
+	@rm -rf */proto/*.pb.go
+
+# Build all services
+build: proto
+	@echo "Building services..."
+	docker-compose build
+
+# Run all services
+run: build
+	@echo "Starting services..."
+	docker-compose up
+
+# Stop all services
+stop:
+	@echo "Stopping services..."
+	docker-compose down
+
+# Generate proto and run services in development mode
+dev: proto
+	@echo "Starting services in development mode..."
+	docker-compose up --build
+
+---
+./README.md
+---
+
+
+---
+./docker-compose.yml
+---
+version: '3.8'
+
+services:
+  inventory-service:
+    build:
+      context: ./inventory-service
+      dockerfile: Dockerfile
+    container_name: inventory-service
+    ports:
+      - "50051:50051"
+    networks:
+      - microservices-network
+    restart: always
+
+  product-service:
+    build:
+      context: ./product-service
+      dockerfile: Dockerfile
+    container_name: product-service
+    ports:
+      - "8081:8081"
+    networks:
+      - microservices-network
+    depends_on:
+      - inventory-service
+    restart: always
+
+  order-service:
+    build:
+      context: ./order-service
+      dockerfile: Dockerfile
+    container_name: order-service
+    ports:
+      - "8082:8082"
+    networks:
+      - microservices-network
+    restart: always
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    networks:
+      - microservices-network
+    depends_on:
+      - product-service
+      - order-service
+    restart: always
+
+networks:
+  microservices-network:
+    driver: bridge
+
+---
+./file.txt
+---
+./Makefile
+---
+.PHONY: proto clean build run
+
+# Generate protobuf code
+proto:
+	@echo "Generating protobuf code..."
+	@for service in product-service inventory-service; do \
+		protoc --proto_path=proto \
+			--go_out=$$service/proto --go_opt=paths=source_relative \
+			--go-grpc_out=$$service/proto --go-grpc_opt=paths=source_relative \
+			proto/*.proto; \
+	done
+
+# Clean generated code
+clean:
+	@echo "Cleaning generated code..."
+	@rm -rf */proto/*.pb.go
+
+# Build all services
+build: proto
+	@echo "Building services..."
+	docker-compose build
+
+# Run all services
+run: build
+	@echo "Starting services..."
+	docker-compose up
+
+# Stop all services
+stop:
+	@echo "Stopping services..."
+	docker-compose down
+
+# Generate proto and run services in development mode
+dev: proto
+	@echo "Starting services in development mode..."
+	docker-compose up --build
+
+---
+./README.md
+---
+
+
+---
+./docker-compose.yml
+---
+version: '3.8'
+
+services:
+  inventory-service:
+    build:
+      context: ./inventory-service
+      dockerfile: Dockerfile
+    container_name: inventory-service
+    ports:
+      - "50051:50051"
+    networks:
+      - microservices-network
+    restart: always
+
+  product-service:
+    build:
+      context: ./product-service
+      dockerfile: Dockerfile
+    container_name: product-service
+    ports:
+      - "8081:8081"
+    networks:
+      - microservices-network
+    depends_on:
+      - inventory-service
+    restart: always
+
+  order-service:
+    build:
+      context: ./order-service
+      dockerfile: Dockerfile
+    container_name: order-service
+    ports:
+      - "8082:8082"
+    networks:
+      - microservices-network
+    restart: always
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    networks:
+      - microservices-network
+    depends_on:
+      - product-service
+      - order-service
+    restart: always
+
+networks:
+  microservices-network:
+    driver: bridge
+
+---
+
+
+---
+./product-service/Dockerfile
+---
+FROM golang:1.23-alpine
+
+WORKDIR /app
+
+COPY . .
+
+RUN go mod download
+
+RUN go build -o main .
+
+EXPOSE 8081
+
+CMD ["./main"]
+
+---
+./product-service/go.mod
+---
+module product-service
+
+go 1.23.1
+
+require (
+	github.com/gorilla/mux v1.8.1
+	google.golang.org/grpc v1.68.0
+	google.golang.org/protobuf v1.34.2
+)
+
+require (
+	golang.org/x/net v0.29.0 // indirect
+	golang.org/x/sys v0.25.0 // indirect
+	golang.org/x/text v0.18.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240903143218-8af14fe29dc1 // indirect
+)
+
+
+---
+./product-service/go.sum
+---
+github.com/golang/protobuf v1.5.4 h1:i7eJL8qZTpSEXOPTxNKhASYpMn+8e5Q6AdndVa1dWek=
+github.com/golang/protobuf v1.5.4/go.mod h1:lnTiLA8Wa4RWRcIUkrtSVa5nRhsEGBg48fD6rSs7xps=
+github.com/google/go-cmp v0.6.0 h1:ofyhxvXcZhMsU5ulbFiLKl/XBFqE1GSq7atu8tAmTRI=
+github.com/google/go-cmp v0.6.0/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
+github.com/gorilla/mux v1.8.1 h1:TuBL49tXwgrFYWhqrNgrUNEY92u81SPhu7sTdzQEiWY=
+github.com/gorilla/mux v1.8.1/go.mod h1:AKf9I4AEqPTmMytcMc0KkNouC66V3BtZ4qD5fmWSiMQ=
+golang.org/x/net v0.29.0 h1:5ORfpBpCs4HzDYoodCDBbwHzdR5UrLBZ3sOnUJmFoHo=
+golang.org/x/net v0.29.0/go.mod h1:gLkgy8jTGERgjzMic6DS9+SP0ajcu6Xu3Orq/SpETg0=
+golang.org/x/sys v0.25.0 h1:r+8e+loiHxRqhXVl6ML1nO3l1+oFoWbnlu2Ehimmi34=
+golang.org/x/sys v0.25.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+golang.org/x/text v0.18.0 h1:XvMDiNzPAl0jr17s6W9lcaIhGUfUORdGCNsuLmPG224=
+golang.org/x/text v0.18.0/go.mod h1:BuEKDfySbSR4drPmRPG/7iBdf8hvFMuRexcpahXilzY=
+google.golang.org/genproto/googleapis/rpc v0.0.0-20240903143218-8af14fe29dc1 h1:pPJltXNxVzT4pK9yD8vR9X75DaWYYmLGMsEvBfFQZzQ=
+google.golang.org/genproto/googleapis/rpc v0.0.0-20240903143218-8af14fe29dc1/go.mod h1:UqMtugtsSgubUsoxbuAoiCXvqvErP7Gf0so0mK9tHxU=
+google.golang.org/grpc v1.68.0 h1:aHQeeJbo8zAkAa3pRzrVjZlbz6uSfeOXlJNQM0RAbz0=
+google.golang.org/grpc v1.68.0/go.mod h1:fmSPC5AsjSBCK54MyHRx48kpOti1/jRfOlwEWywNjWA=
+google.golang.org/protobuf v1.34.2 h1:6xV6lTsCfpGD21XK49h7MhtcApnLqkfYgPcdHftf6hg=
+google.golang.org/protobuf v1.34.2/go.mod h1:qYOHts0dSfpeUzUFpOMr/WGzszTmLH+DiWniOlNbLDw=
+
+
+---
+./product-service/main.go
+---
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"log"
+	"net/http"
+	"product-service/proto"
+	""
+	"time"
+
+	"github.com/gorilla/mux"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+)
+
+type Product struct {
+	ID       string  `json:"id"`
+	Name     string  `json:"name"`
+	Price    float64 `json:"price"`
+	InStock  bool    `json:"in_stock"`
+	Quantity int32   `json:"quantity"`
+}
+
+var products []Product
+var inventoryClient proto.InventoryServiceClient
+
+func main() {
+	// Load configuration
+    cfg, err := config.LoadConfig()
+    if err != nil {
+        log.Fatal("Cannot load config:", err)
+    }
+
+	// Set up gRPC connection to inventory service
+	inventoryAddr := fmt.Sprintf("%s:%s", 
+        cfg.InventoryServiceHost, 
+        cfg.InventoryServicePort,
+    )
+	conn, err := grpc.NewClient("inventory-service:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("failed to connect: %v", err)
+	}
+	defer conn.Close()
+	inventoryClient = proto.NewInventoryServiceClient(conn)
+
+	router := mux.NewRouter()
+
+	// Sample data
+	products = append(products, Product{ID: "1", Name: "Laptop", Price: 999.99})
+	products = append(products, Product{ID: "2", Name: "Mouse", Price: 29.99})
+
+	router.HandleFunc("/products", GetProducts).Methods("GET")
+	router.HandleFunc("/products/{id}", GetProduct).Methods("GET")
+
+	log.Printf("Product service is running on port 8081")
+	log.Fatal(http.ListenAndServe(":8081", router))
+}
+
+func GetProducts(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	// Get inventory information for each product
+	enrichedProducts := make([]Product, len(products))
+	for i, product := range products {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		resp, err := inventoryClient.CheckStock(ctx, &proto.StockRequest{ProductId: product.ID})
+		if err != nil {
+			log.Printf("Error checking stock for product %s: %v", product.ID, err)
+			continue
+		}
+
+		enrichedProducts[i] = Product{
+			ID:       product.ID,
+			Name:     product.Name,
+			Price:    product.Price,
+			InStock:  resp.InStock,
+			Quantity: resp.Quantity,
+		}
+	}
+
+	json.NewEncoder(w).Encode(enrichedProducts)
+}
+
+func GetProduct(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	params := mux.Vars(r)
+
+	for _, item := range products {
+		if item.ID == params["id"] {
+			json.NewEncoder(w).Encode(item)
+			return
+		}
+	}
+	json.NewEncoder(w).Encode(&Product{})
+}
+
+
+---
+./product-service/proto/inventory.pb.go
+---
+// Code generated by protoc-gen-go. DO NOT EDIT.
+// versions:
+// 	protoc-gen-go v1.35.2
+// 	protoc        v5.28.2
+// source: inventory.proto
+
+package proto
+
+import (
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	reflect "reflect"
+	sync "sync"
+)
+
+const (
+	// Verify that this generated code is sufficiently up-to-date.
+	_ = protoimpl.EnforceVersion(20 - protoimpl.MinVersion)
+	// Verify that runtime/protoimpl is sufficiently up-to-date.
+	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
+)
+
+type StockRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	ProductId string `protobuf:"bytes,1,opt,name=product_id,json=productId,proto3" json:"product_id,omitempty"`
+}
+
+func (x *StockRequest) Reset() {
+	*x = StockRequest{}
+	mi := &file_inventory_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StockRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StockRequest) ProtoMessage() {}
+
+func (x *StockRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_inventory_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StockRequest.ProtoReflect.Descriptor instead.
+func (*StockRequest) Descriptor() ([]byte, []int) {
+	return file_inventory_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *StockRequest) GetProductId() string {
+	if x != nil {
+		return x.ProductId
+	}
+	return ""
+}
+
+type StockResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	ProductId string `protobuf:"bytes,1,opt,name=product_id,json=productId,proto3" json:"product_id,omitempty"`
+	Quantity  int32  `protobuf:"varint,2,opt,name=quantity,proto3" json:"quantity,omitempty"`
+	InStock   bool   `protobuf:"varint,3,opt,name=in_stock,json=inStock,proto3" json:"in_stock,omitempty"`
+}
+
+func (x *StockResponse) Reset() {
+	*x = StockResponse{}
+	mi := &file_inventory_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StockResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StockResponse) ProtoMessage() {}
+
+func (x *StockResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_inventory_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StockResponse.ProtoReflect.Descriptor instead.
+func (*StockResponse) Descriptor() ([]byte, []int) {
+	return file_inventory_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *StockResponse) GetProductId() string {
+	if x != nil {
+		return x.ProductId
+	}
+	return ""
+}
+
+func (x *StockResponse) GetQuantity() int32 {
+	if x != nil {
+		return x.Quantity
+	}
+	return 0
+}
+
+func (x *StockResponse) GetInStock() bool {
+	if x != nil {
+		return x.InStock
+	}
+	return false
+}
+
+var File_inventory_proto protoreflect.FileDescriptor
+
+var file_inventory_proto_rawDesc = []byte{
+	0x0a, 0x0f, 0x69, 0x6e, 0x76, 0x65, 0x6e, 0x74, 0x6f, 0x72, 0x79, 0x2e, 0x70, 0x72, 0x6f, 0x74,
+	0x6f, 0x12, 0x09, 0x69, 0x6e, 0x76, 0x65, 0x6e, 0x74, 0x6f, 0x72, 0x79, 0x22, 0x2d, 0x0a, 0x0c,
+	0x53, 0x74, 0x6f, 0x63, 0x6b, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x1d, 0x0a, 0x0a,
+	0x70, 0x72, 0x6f, 0x64, 0x75, 0x63, 0x74, 0x5f, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09,
+	0x52, 0x09, 0x70, 0x72, 0x6f, 0x64, 0x75, 0x63, 0x74, 0x49, 0x64, 0x22, 0x65, 0x0a, 0x0d, 0x53,
+	0x74, 0x6f, 0x63, 0x6b, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x1d, 0x0a, 0x0a,
+	0x70, 0x72, 0x6f, 0x64, 0x75, 0x63, 0x74, 0x5f, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09,
+	0x52, 0x09, 0x70, 0x72, 0x6f, 0x64, 0x75, 0x63, 0x74, 0x49, 0x64, 0x12, 0x1a, 0x0a, 0x08, 0x71,
+	0x75, 0x61, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x18, 0x02, 0x20, 0x01, 0x28, 0x05, 0x52, 0x08, 0x71,
+	0x75, 0x61, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x12, 0x19, 0x0a, 0x08, 0x69, 0x6e, 0x5f, 0x73, 0x74,
+	0x6f, 0x63, 0x6b, 0x18, 0x03, 0x20, 0x01, 0x28, 0x08, 0x52, 0x07, 0x69, 0x6e, 0x53, 0x74, 0x6f,
+	0x63, 0x6b, 0x32, 0x55, 0x0a, 0x10, 0x49, 0x6e, 0x76, 0x65, 0x6e, 0x74, 0x6f, 0x72, 0x79, 0x53,
+	0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x41, 0x0a, 0x0a, 0x43, 0x68, 0x65, 0x63, 0x6b, 0x53,
+	0x74, 0x6f, 0x63, 0x6b, 0x12, 0x17, 0x2e, 0x69, 0x6e, 0x76, 0x65, 0x6e, 0x74, 0x6f, 0x72, 0x79,
+	0x2e, 0x53, 0x74, 0x6f, 0x63, 0x6b, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x18, 0x2e,
+	0x69, 0x6e, 0x76, 0x65, 0x6e, 0x74, 0x6f, 0x72, 0x79, 0x2e, 0x53, 0x74, 0x6f, 0x63, 0x6b, 0x52,
+	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x42, 0x09, 0x5a, 0x07, 0x2e, 0x2f, 0x70,
+	0x72, 0x6f, 0x74, 0x6f, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+}
+
+var (
+	file_inventory_proto_rawDescOnce sync.Once
+	file_inventory_proto_rawDescData = file_inventory_proto_rawDesc
+)
+
+func file_inventory_proto_rawDescGZIP() []byte {
+	file_inventory_proto_rawDescOnce.Do(func() {
+		file_inventory_proto_rawDescData = protoimpl.X.CompressGZIP(file_inventory_proto_rawDescData)
+	})
+	return file_inventory_proto_rawDescData
+}
+
+var file_inventory_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_inventory_proto_goTypes = []any{
+	(*StockRequest)(nil),  // 0: inventory.StockRequest
+	(*StockResponse)(nil), // 1: inventory.StockResponse
+}
+var file_inventory_proto_depIdxs = []int32{
+	0, // 0: inventory.InventoryService.CheckStock:input_type -> inventory.StockRequest
+	1, // 1: inventory.InventoryService.CheckStock:output_type -> inventory.StockResponse
+	1, // [1:2] is the sub-list for method output_type
+	0, // [0:1] is the sub-list for method input_type
+	0, // [0:0] is the sub-list for extension type_name
+	0, // [0:0] is the sub-list for extension extendee
+	0, // [0:0] is the sub-list for field type_name
+}
+
+func init() { file_inventory_proto_init() }
+func file_inventory_proto_init() {
+	if File_inventory_proto != nil {
+		return
+	}
+	type x struct{}
+	out := protoimpl.TypeBuilder{
+		File: protoimpl.DescBuilder{
+			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
+			RawDescriptor: file_inventory_proto_rawDesc,
+			NumEnums:      0,
+			NumMessages:   2,
+			NumExtensions: 0,
+			NumServices:   1,
+		},
+		GoTypes:           file_inventory_proto_goTypes,
+		DependencyIndexes: file_inventory_proto_depIdxs,
+		MessageInfos:      file_inventory_proto_msgTypes,
+	}.Build()
+	File_inventory_proto = out.File
+	file_inventory_proto_rawDesc = nil
+	file_inventory_proto_goTypes = nil
+	file_inventory_proto_depIdxs = nil
+}
+
+
+---
+./product-service/proto/inventory_grpc.pb.go
+---
+// Code generated by protoc-gen-go-grpc. DO NOT EDIT.
+// versions:
+// - protoc-gen-go-grpc v1.5.1
+// - protoc             v5.28.2
+// source: inventory.proto
+
+package proto
+
+import (
+	context "context"
+	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
+)
+
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the grpc package it is being compiled against.
+// Requires gRPC-Go v1.64.0 or later.
+const _ = grpc.SupportPackageIsVersion9
+
+const (
+	InventoryService_CheckStock_FullMethodName = "/inventory.InventoryService/CheckStock"
+)
+
+// InventoryServiceClient is the client API for InventoryService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type InventoryServiceClient interface {
+	CheckStock(ctx context.Context, in *StockRequest, opts ...grpc.CallOption) (*StockResponse, error)
+}
+
+type inventoryServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewInventoryServiceClient(cc grpc.ClientConnInterface) InventoryServiceClient {
+	return &inventoryServiceClient{cc}
+}
+
+func (c *inventoryServiceClient) CheckStock(ctx context.Context, in *StockRequest, opts ...grpc.CallOption) (*StockResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(StockResponse)
+	err := c.cc.Invoke(ctx, InventoryService_CheckStock_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// InventoryServiceServer is the server API for InventoryService service.
+// All implementations must embed UnimplementedInventoryServiceServer
+// for forward compatibility.
+type InventoryServiceServer interface {
+	CheckStock(context.Context, *StockRequest) (*StockResponse, error)
+	mustEmbedUnimplementedInventoryServiceServer()
+}
+
+// UnimplementedInventoryServiceServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedInventoryServiceServer struct{}
+
+func (UnimplementedInventoryServiceServer) CheckStock(context.Context, *StockRequest) (*StockResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CheckStock not implemented")
+}
+func (UnimplementedInventoryServiceServer) mustEmbedUnimplementedInventoryServiceServer() {}
+func (UnimplementedInventoryServiceServer) testEmbeddedByValue()                          {}
+
+// UnsafeInventoryServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to InventoryServiceServer will
+// result in compilation errors.
+type UnsafeInventoryServiceServer interface {
+	mustEmbedUnimplementedInventoryServiceServer()
+}
+
+func RegisterInventoryServiceServer(s grpc.ServiceRegistrar, srv InventoryServiceServer) {
+	// If the following call pancis, it indicates UnimplementedInventoryServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&InventoryService_ServiceDesc, srv)
+}
+
+func _InventoryService_CheckStock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StockRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InventoryServiceServer).CheckStock(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: InventoryService_CheckStock_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InventoryServiceServer).CheckStock(ctx, req.(*StockRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// InventoryService_ServiceDesc is the grpc.ServiceDesc for InventoryService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var InventoryService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "inventory.InventoryService",
+	HandlerType: (*InventoryServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "CheckStock",
+			Handler:    _InventoryService_CheckStock_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "inventory.proto",
+}
+
+
+---
+./product-service/config/config.go
+---
+package config
+
+import (
+	"github.com/spf13/viper"
+)
+
+type Config struct {
+	ServerPort           string `mapstructure:"SERVER_PORT"`
+	ServerHost           string `mapstructure:"SERVER_HOST"`
+	InventoryServiceHost string `mapstructure:"INVENTORY_SERVICE_HOST"`
+	InventoryServicePort string `mapstructure:"INVENTORY_SERVICE_PORT"`
+	AppEnv               string `mapstructure:"APP_ENV"`
+	LogLevel             string `mapstructure:"LOG_LEVEL"`
+}
+
+func LoadConfig() (config Config, err error) {
+	viper.AddConfigPath(".")
+	viper.SetConfigName(".env")
+	viper.SetConfigType("env")
+
+	viper.AutomaticEnv()
+
+	err = viper.ReadInConfig()
+	if err != nil {
+		return
+	}
+
+	err = viper.Unmarshal(&config)
+	return
+}
+
+
+---
+./product-service/config/go.mod
+---
+module config
+
+go 1.23.1
+
+require github.com/spf13/viper v1.19.0
+
+require (
+	github.com/fsnotify/fsnotify v1.7.0 // indirect
+	github.com/hashicorp/hcl v1.0.0 // indirect
+	github.com/magiconair/properties v1.8.7 // indirect
+	github.com/mitchellh/mapstructure v1.5.0 // indirect
+	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
+	github.com/sagikazarmark/locafero v0.4.0 // indirect
+	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
+	github.com/sourcegraph/conc v0.3.0 // indirect
+	github.com/spf13/afero v1.11.0 // indirect
+	github.com/spf13/cast v1.6.0 // indirect
+	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/subosito/gotenv v1.6.0 // indirect
+	go.uber.org/atomic v1.9.0 // indirect
+	go.uber.org/multierr v1.9.0 // indirect
+	golang.org/x/exp v0.0.0-20230905200255-921286631fa9 // indirect
+	golang.org/x/sys v0.18.0 // indirect
+	golang.org/x/text v0.14.0 // indirect
+	gopkg.in/ini.v1 v1.67.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
+)
+
+
+---
+./product-service/config/go.sum
+---
+github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1VwoXQT9A3Wy9MM3WgvqSxFWenqJduM=
+github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+github.com/frankban/quicktest v1.14.6 h1:7Xjx+VpznH+oBnejlPUj8oUpdxnVs4f8XU8WnHkI4W8=
+github.com/frankban/quicktest v1.14.6/go.mod h1:4ptaffx2x8+WTWXmUCuVU6aPUX1/Mz7zb5vbUoiM6w0=
+github.com/fsnotify/fsnotify v1.7.0 h1:8JEhPFa5W2WU7YfeZzPNqzMP6Lwt7L2715Ggo0nosvA=
+github.com/fsnotify/fsnotify v1.7.0/go.mod h1:40Bi/Hjc2AVfZrqy+aj+yEI+/bRxZnMJyTJwOpGvigM=
+github.com/google/go-cmp v0.5.9 h1:O2Tfq5qg4qc4AmwVlvv0oLiVAGB7enBSJ2x2DqQFi38=
+github.com/google/go-cmp v0.5.9/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
+github.com/hashicorp/hcl v1.0.0 h1:0Anlzjpi4vEasTeNFn2mLJgTSwt0+6sfsiTG8qcWGx4=
+github.com/hashicorp/hcl v1.0.0/go.mod h1:E5yfLk+7swimpb2L/Alb/PJmXilQ/rhwaUYs4T20WEQ=
+github.com/kr/pretty v0.3.1 h1:flRD4NNwYAUpkphVc1HcthR4KEIFJ65n8Mw5qdRn3LE=
+github.com/kr/pretty v0.3.1/go.mod h1:hoEshYVHaxMs3cyo3Yncou5ZscifuDolrwPKZanG3xk=
+github.com/kr/text v0.2.0 h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=
+github.com/kr/text v0.2.0/go.mod h1:eLer722TekiGuMkidMxC/pM04lWEeraHUUmBw8l2grE=
+github.com/magiconair/properties v1.8.7 h1:IeQXZAiQcpL9mgcAe1Nu6cX9LLw6ExEHKjN0VQdvPDY=
+github.com/magiconair/properties v1.8.7/go.mod h1:Dhd985XPs7jluiymwWYZ0G4Z61jb3vdS329zhj2hYo0=
+github.com/mitchellh/mapstructure v1.5.0 h1:jeMsZIYE/09sWLaz43PL7Gy6RuMjD2eJVyuac5Z2hdY=
+github.com/mitchellh/mapstructure v1.5.0/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RRV2QTWOzhPopBRo=
+github.com/pelletier/go-toml/v2 v2.2.2 h1:aYUidT7k73Pcl9nb2gScu7NSrKCSHIDE89b3+6Wq+LM=
+github.com/pelletier/go-toml/v2 v2.2.2/go.mod h1:1t835xjRzz80PqgE6HHgN2JOsmgYu/h4qDAS4n929Rs=
+github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
+github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 h1:Jamvg5psRIccs7FGNTlIRMkT8wgtp5eCXdBlqhYGL6U=
+github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
+github.com/rogpeppe/go-internal v1.9.0 h1:73kH8U+JUqXU8lRuOHeVHaa/SZPifC7BkcraZVejAe8=
+github.com/rogpeppe/go-internal v1.9.0/go.mod h1:WtVeX8xhTBvf0smdhujwtBcq4Qrzq/fJaraNFVN+nFs=
+github.com/sagikazarmark/locafero v0.4.0 h1:HApY1R9zGo4DBgr7dqsTH/JJxLTTsOt7u6keLGt6kNQ=
+github.com/sagikazarmark/locafero v0.4.0/go.mod h1:Pe1W6UlPYUk/+wc/6KFhbORCfqzgYEpgQ3O5fPuL3H4=
+github.com/sagikazarmark/slog-shim v0.1.0 h1:diDBnUNK9N/354PgrxMywXnAwEr1QZcOr6gto+ugjYE=
+github.com/sagikazarmark/slog-shim v0.1.0/go.mod h1:SrcSrq8aKtyuqEI1uvTDTK1arOWRIczQRv+GVI1AkeQ=
+github.com/sourcegraph/conc v0.3.0 h1:OQTbbt6P72L20UqAkXXuLOj79LfEanQ+YQFNpLA9ySo=
+github.com/sourcegraph/conc v0.3.0/go.mod h1:Sdozi7LEKbFPqYX2/J+iBAM6HpqSLTASQIKqDmF7Mt0=
+github.com/spf13/afero v1.11.0 h1:WJQKhtpdm3v2IzqG8VMqrr6Rf3UYpEF239Jy9wNepM8=
+github.com/spf13/afero v1.11.0/go.mod h1:GH9Y3pIexgf1MTIWtNGyogA5MwRIDXGUr+hbWNoBjkY=
+github.com/spf13/cast v1.6.0 h1:GEiTHELF+vaR5dhz3VqZfFSzZjYbgeKDpBxQVS4GYJ0=
+github.com/spf13/cast v1.6.0/go.mod h1:ancEpBxwJDODSW/UG4rDrAqiKolqNNh2DX3mk86cAdo=
+github.com/spf13/pflag v1.0.5 h1:iy+VFUOCP1a+8yFto/drg2CJ5u0yRoB7fZw3DKv/JXA=
+github.com/spf13/pflag v1.0.5/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3An2Bg=
+github.com/spf13/viper v1.19.0 h1:RWq5SEjt8o25SROyN3z2OrDB9l7RPd3lwTWU8EcEdcI=
+github.com/spf13/viper v1.19.0/go.mod h1:GQUN9bilAbhU/jgc1bKs99f/suXKeUMct8Adx5+Ntkg=
+github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
+github.com/stretchr/objx v0.4.0/go.mod h1:YvHI0jy2hoMjB+UWwv71VJQ9isScKT/TqJzVSSt89Yw=
+github.com/stretchr/objx v0.5.0/go.mod h1:Yh+to48EsGEfYuaHDzXPcE3xhTkx73EhmCGUpEOglKo=
+github.com/stretchr/objx v0.5.2/go.mod h1:FRsXN1f5AsAjCGJKqEizvkpNtU+EGNCLh3NxZ/8L+MA=
+github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
+github.com/stretchr/testify v1.7.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
+github.com/stretchr/testify v1.8.0/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO+kdMU+MU=
+github.com/stretchr/testify v1.8.4/go.mod h1:sz/lmYIOXD/1dqDmKjjqLyZ2RngseejIcXlSw2iwfAo=
+github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsTg=
+github.com/stretchr/testify v1.9.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
+github.com/subosito/gotenv v1.6.0 h1:9NlTDc1FTs4qu0DDq7AEtTPNw6SVm7uBMsUCUjABIf8=
+github.com/subosito/gotenv v1.6.0/go.mod h1:Dk4QP5c2W3ibzajGcXpNraDfq2IrhjMIvMSWPKKo0FU=
+go.uber.org/atomic v1.9.0 h1:ECmE8Bn/WFTYwEW/bpKD3M8VtR/zQVbavAoalC1PYyE=
+go.uber.org/atomic v1.9.0/go.mod h1:fEN4uk6kAWBTFdckzkM89CLk9XfWZrxpCo0nPH17wJc=
+go.uber.org/multierr v1.9.0 h1:7fIwc/ZtS0q++VgcfqFDxSBZVv/Xo49/SYnDFupUwlI=
+go.uber.org/multierr v1.9.0/go.mod h1:X2jQV1h+kxSjClGpnseKVIxpmcjrj7MNnI0bnlfKTVQ=
+golang.org/x/exp v0.0.0-20230905200255-921286631fa9 h1:GoHiUyI/Tp2nVkLI2mCxVkOjsbSXD66ic0XW0js0R9g=
+golang.org/x/exp v0.0.0-20230905200255-921286631fa9/go.mod h1:S2oDrQGGwySpoQPVqRShND87VCbxmc6bL1Yd2oYrm6k=
+golang.org/x/sys v0.18.0 h1:DBdB3niSjOA/O0blCZBqDefyWNYveAYMNF1Wum0DYQ4=
+golang.org/x/sys v0.18.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+golang.org/x/text v0.14.0 h1:ScX5w1eTa3QqT8oi6+ziP7dTV1S2+ALU0bI+0zXKWiQ=
+golang.org/x/text v0.14.0/go.mod h1:18ZOQIKpY8NJVqYksKHtTdi31H5itFRjB5/qKTNYzSU=
+gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
+gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 h1:YR8cESwS4TdDjEe65xsg0ogRM/Nc3DYOhEAlW+xobZo=
+gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
+gopkg.in/ini.v1 v1.67.0 h1:Dgnx+6+nfE+IfzjUEISNeydPJh9AXNNsWbGP9KzCsOA=
+gopkg.in/ini.v1 v1.67.0/go.mod h1:pNLf8WUiyNEtQjuu5G5vTm06TEv9tsIgeAvK8hOrP4k=
+gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
+gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
+gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
+
+
+---
+./order-service/Dockerfile
+---
+FROM golang:1.23-alpine
+
+WORKDIR /app
+
+COPY go.mod .
+COPY go.sum .
+RUN go mod download
+
+COPY . .
+
+RUN go build -o main .
+
+EXPOSE 8082
+
+CMD ["./main"]
+
+---
+./order-service/go.mod
+---
+module order-service
+
+go 1.23.1
+
+require github.com/gorilla/mux v1.8.1
+
+
+---
+./order-service/go.sum
+---
+github.com/gorilla/mux v1.8.1 h1:TuBL49tXwgrFYWhqrNgrUNEY92u81SPhu7sTdzQEiWY=
+github.com/gorilla/mux v1.8.1/go.mod h1:AKf9I4AEqPTmMytcMc0KkNouC66V3BtZ4qD5fmWSiMQ=
+
+
+---
+./order-service/main.go
+---
+package main
+
+import (
+    "encoding/json"
+    "log"
+    "net/http"
+    "github.com/gorilla/mux"
+)
+
+type Order struct {
+    ID         string   `json:"id"`
+    ProductIDs []string `json:"product_ids"`
+    Total      float64  `json:"total"`
+}
+
+var orders []Order
+
+func main() {
+    // Initialize router
+    router := mux.NewRouter()
+
+    // Sample data
+    orders = append(orders, Order{ID: "1", ProductIDs: []string{"1", "2"}, Total: 1029.98})
+
+    // Routes
+    router.HandleFunc("/orders", GetOrders).Methods("GET")
+    router.HandleFunc("/orders/{id}", GetOrder).Methods("GET")
+
+    log.Printf("Order service is running on port 8082")
+    log.Fatal(http.ListenAndServe(":8082", router))
+}
+
+func GetOrders(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(orders)
+}
+
+func GetOrder(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "application/json")
+    params := mux.Vars(r)
+    for _, item := range orders {
+        if item.ID == params["id"] {
+            json.NewEncoder(w).Encode(item)
+            return
+        }
+    }
+    json.NewEncoder(w).Encode(&Order{})
+}
+
+---
+./api-gateway/Dockerfile
+---
+FROM golang:1.23-alpine
+
+WORKDIR /app
+
+COPY go.mod .
+COPY go.sum .
+RUN go mod download
+
+COPY . .
+
+RUN go build -o main .
+
+EXPOSE 8080
+
+CMD ["./main"]
+
+---
+./api-gateway/go.mod
+---
+module api-gateway
+
+go 1.23.1
+
+require github.com/gorilla/mux v1.8.1
+
+
+---
+./api-gateway/go.sum
+---
+github.com/gorilla/mux v1.8.1 h1:TuBL49tXwgrFYWhqrNgrUNEY92u81SPhu7sTdzQEiWY=
+github.com/gorilla/mux v1.8.1/go.mod h1:AKf9I4AEqPTmMytcMc0KkNouC66V3BtZ4qD5fmWSiMQ=
+
+
+---
+./api-gateway/main.go
+---
+package main
+
+import (
+    "log"
+    "net/http"
+    "net/http/httputil"
+    "net/url"
+    "github.com/gorilla/mux"
+)
+
+func main() {
+    // Initialize router
+    router := mux.NewRouter()
+
+    // Routes
+    router.PathPrefix("/products").HandlerFunc(handleProduct)
+    router.PathPrefix("/orders").HandlerFunc(handleOrder)
+
+    log.Printf("API Gateway is running on port 8080")
+    log.Fatal(http.ListenAndServe(":8080", router))
+}
+
+func handleProduct(w http.ResponseWriter, r *http.Request) {
+    // Using the service name defined in docker-compose
+    productServiceURL, _ := url.Parse("http://product-service:8081")
+    proxy := httputil.NewSingleHostReverseProxy(productServiceURL)
+    proxy.ServeHTTP(w, r)
+}
+
+func handleOrder(w http.ResponseWriter, r *http.Request) {
+    // Using the service name defined in docker-compose
+    orderServiceURL, _ := url.Parse("http://order-service:8082")
+    proxy := httputil.NewSingleHostReverseProxy(orderServiceURL)
+    proxy.ServeHTTP(w, r)
+}
+
+---
+./api-gateway/config/config.go
+---
+
+
+---
+./scripts/README.md
+---
+
+
+---
+./scripts/gen-proto.sh
+---
+#!/bin/bash
+
+# Create proto directories if they don't exist
+mkdir -p product-service/proto
+mkdir -p inventory-service/proto
+
+# Generate proto files
+make proto
+
+# Check if generation was successful
+# if [ $? -eq 0 ]; then
+#     echo "Proto files generated successfully!"
+    
+#     # Build and start services
+#     make build
+# else
+#     echo "Failed to generate proto files!"
+#     exit 1
+# fi
+
+---
+./scripts/setup-dev.sh
+---
+#!/bin/bash
+
+# Copy example env files to actual env files if they don't exist
+for service in product-service order-service inventory-service api-gateway; do
+    if [ ! -f "./$service/.env" ]; then
+        cp "./$service/.env.example" "./$service/.env"
+        echo "Created .env file for $service"
+    fi
+done
+
+---
+./inventory-service/Dockerfile
+---
+#Build
+FROM golang:1.23-alpine AS builder
+
+WORKDIR /app
+
+COPY go.mod .
+COPY go.sum .
+RUN go mod download
+
+COPY . .
+
+RUN go build -o main .
+
+# Product
+FROM alpine
+
+WORKDIR /app
+COPY --from=builder /app/main /app
+
+EXPOSE 50051
+
+CMD ["./main"]
+
+---
+./inventory-service/go.mod
+---
+module inventory-service
+
+go 1.23.1
+
+require (
+	google.golang.org/grpc v1.68.0
+	google.golang.org/protobuf v1.34.2
+)
+
+require (
+	golang.org/x/net v0.29.0 // indirect
+	golang.org/x/sys v0.25.0 // indirect
+	golang.org/x/text v0.18.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240903143218-8af14fe29dc1 // indirect
+)
+
+
+---
+./inventory-service/go.sum
+---
+github.com/golang/protobuf v1.5.4 h1:i7eJL8qZTpSEXOPTxNKhASYpMn+8e5Q6AdndVa1dWek=
+github.com/golang/protobuf v1.5.4/go.mod h1:lnTiLA8Wa4RWRcIUkrtSVa5nRhsEGBg48fD6rSs7xps=
+github.com/google/go-cmp v0.6.0 h1:ofyhxvXcZhMsU5ulbFiLKl/XBFqE1GSq7atu8tAmTRI=
+github.com/google/go-cmp v0.6.0/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
+golang.org/x/net v0.29.0 h1:5ORfpBpCs4HzDYoodCDBbwHzdR5UrLBZ3sOnUJmFoHo=
+golang.org/x/net v0.29.0/go.mod h1:gLkgy8jTGERgjzMic6DS9+SP0ajcu6Xu3Orq/SpETg0=
+golang.org/x/sys v0.25.0 h1:r+8e+loiHxRqhXVl6ML1nO3l1+oFoWbnlu2Ehimmi34=
+golang.org/x/sys v0.25.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+golang.org/x/text v0.18.0 h1:XvMDiNzPAl0jr17s6W9lcaIhGUfUORdGCNsuLmPG224=
+golang.org/x/text v0.18.0/go.mod h1:BuEKDfySbSR4drPmRPG/7iBdf8hvFMuRexcpahXilzY=
+google.golang.org/genproto/googleapis/rpc v0.0.0-20240903143218-8af14fe29dc1 h1:pPJltXNxVzT4pK9yD8vR9X75DaWYYmLGMsEvBfFQZzQ=
+google.golang.org/genproto/googleapis/rpc v0.0.0-20240903143218-8af14fe29dc1/go.mod h1:UqMtugtsSgubUsoxbuAoiCXvqvErP7Gf0so0mK9tHxU=
+google.golang.org/grpc v1.68.0 h1:aHQeeJbo8zAkAa3pRzrVjZlbz6uSfeOXlJNQM0RAbz0=
+google.golang.org/grpc v1.68.0/go.mod h1:fmSPC5AsjSBCK54MyHRx48kpOti1/jRfOlwEWywNjWA=
+google.golang.org/protobuf v1.34.2 h1:6xV6lTsCfpGD21XK49h7MhtcApnLqkfYgPcdHftf6hg=
+google.golang.org/protobuf v1.34.2/go.mod h1:qYOHts0dSfpeUzUFpOMr/WGzszTmLH+DiWniOlNbLDw=
+
+
+---
+./inventory-service/main.go
+---
+package main
+
+import (
+	"context"
+	"log"
+	"net"
+	"inventory-service/proto"
+	"google.golang.org/grpc"
+)
+
+type server struct {
+	proto.UnimplementedInventoryServiceServer
+}
+
+// In-memory inventory data
+var inventory = map[string]int32{
+	"1": 100, // Product ID 1 has 100 items
+	"2": 50,  // Product ID 2 has 50 items
+}
+
+func (s *server) CheckStock(ctx context.Context, req *proto.StockRequest) (*proto.StockResponse, error) {
+	quantity := inventory[req.ProductId]
+	return &proto.StockResponse{
+		ProductId: req.ProductId,
+		Quantity:  quantity,
+		InStock:   quantity > 0,
+	}, nil
+}
+
+func main() {
+	lis, err := net.Listen("tcp", ":50051")
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+
+	s := grpc.NewServer()
+	proto.RegisterInventoryServiceServer(s, &server{})
+
+	log.Printf("Inventory service is running on port 50051")
+	if err := s.Serve(lis); err != nil {
+		log.Fatalf("failed to serve: %v", err)
+	}
+}
+
+
+---
+./inventory-service/proto/inventory.pb.go
+---
+// Code generated by protoc-gen-go. DO NOT EDIT.
+// versions:
+// 	protoc-gen-go v1.35.2
+// 	protoc        v5.28.2
+// source: inventory.proto
+
+package proto
+
+import (
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	reflect "reflect"
+	sync "sync"
+)
+
+const (
+	// Verify that this generated code is sufficiently up-to-date.
+	_ = protoimpl.EnforceVersion(20 - protoimpl.MinVersion)
+	// Verify that runtime/protoimpl is sufficiently up-to-date.
+	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
+)
+
+type StockRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	ProductId string `protobuf:"bytes,1,opt,name=product_id,json=productId,proto3" json:"product_id,omitempty"`
+}
+
+func (x *StockRequest) Reset() {
+	*x = StockRequest{}
+	mi := &file_inventory_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StockRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StockRequest) ProtoMessage() {}
+
+func (x *StockRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_inventory_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StockRequest.ProtoReflect.Descriptor instead.
+func (*StockRequest) Descriptor() ([]byte, []int) {
+	return file_inventory_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *StockRequest) GetProductId() string {
+	if x != nil {
+		return x.ProductId
+	}
+	return ""
+}
+
+type StockResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	ProductId string `protobuf:"bytes,1,opt,name=product_id,json=productId,proto3" json:"product_id,omitempty"`
+	Quantity  int32  `protobuf:"varint,2,opt,name=quantity,proto3" json:"quantity,omitempty"`
+	InStock   bool   `protobuf:"varint,3,opt,name=in_stock,json=inStock,proto3" json:"in_stock,omitempty"`
+}
+
+func (x *StockResponse) Reset() {
+	*x = StockResponse{}
+	mi := &file_inventory_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StockResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StockResponse) ProtoMessage() {}
+
+func (x *StockResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_inventory_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StockResponse.ProtoReflect.Descriptor instead.
+func (*StockResponse) Descriptor() ([]byte, []int) {
+	return file_inventory_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *StockResponse) GetProductId() string {
+	if x != nil {
+		return x.ProductId
+	}
+	return ""
+}
+
+func (x *StockResponse) GetQuantity() int32 {
+	if x != nil {
+		return x.Quantity
+	}
+	return 0
+}
+
+func (x *StockResponse) GetInStock() bool {
+	if x != nil {
+		return x.InStock
+	}
+	return false
+}
+
+var File_inventory_proto protoreflect.FileDescriptor
+
+var file_inventory_proto_rawDesc = []byte{
+	0x0a, 0x0f, 0x69, 0x6e, 0x76, 0x65, 0x6e, 0x74, 0x6f, 0x72, 0x79, 0x2e, 0x70, 0x72, 0x6f, 0x74,
+	0x6f, 0x12, 0x09, 0x69, 0x6e, 0x76, 0x65, 0x6e, 0x74, 0x6f, 0x72, 0x79, 0x22, 0x2d, 0x0a, 0x0c,
+	0x53, 0x74, 0x6f, 0x63, 0x6b, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x1d, 0x0a, 0x0a,
+	0x70, 0x72, 0x6f, 0x64, 0x75, 0x63, 0x74, 0x5f, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09,
+	0x52, 0x09, 0x70, 0x72, 0x6f, 0x64, 0x75, 0x63, 0x74, 0x49, 0x64, 0x22, 0x65, 0x0a, 0x0d, 0x53,
+	0x74, 0x6f, 0x63, 0x6b, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x1d, 0x0a, 0x0a,
+	0x70, 0x72, 0x6f, 0x64, 0x75, 0x63, 0x74, 0x5f, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09,
+	0x52, 0x09, 0x70, 0x72, 0x6f, 0x64, 0x75, 0x63, 0x74, 0x49, 0x64, 0x12, 0x1a, 0x0a, 0x08, 0x71,
+	0x75, 0x61, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x18, 0x02, 0x20, 0x01, 0x28, 0x05, 0x52, 0x08, 0x71,
+	0x75, 0x61, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x12, 0x19, 0x0a, 0x08, 0x69, 0x6e, 0x5f, 0x73, 0x74,
+	0x6f, 0x63, 0x6b, 0x18, 0x03, 0x20, 0x01, 0x28, 0x08, 0x52, 0x07, 0x69, 0x6e, 0x53, 0x74, 0x6f,
+	0x63, 0x6b, 0x32, 0x55, 0x0a, 0x10, 0x49, 0x6e, 0x76, 0x65, 0x6e, 0x74, 0x6f, 0x72, 0x79, 0x53,
+	0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x41, 0x0a, 0x0a, 0x43, 0x68, 0x65, 0x63, 0x6b, 0x53,
+	0x74, 0x6f, 0x63, 0x6b, 0x12, 0x17, 0x2e, 0x69, 0x6e, 0x76, 0x65, 0x6e, 0x74, 0x6f, 0x72, 0x79,
+	0x2e, 0x53, 0x74, 0x6f, 0x63, 0x6b, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x18, 0x2e,
+	0x69, 0x6e, 0x76, 0x65, 0x6e, 0x74, 0x6f, 0x72, 0x79, 0x2e, 0x53, 0x74, 0x6f, 0x63, 0x6b, 0x52,
+	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x42, 0x09, 0x5a, 0x07, 0x2e, 0x2f, 0x70,
+	0x72, 0x6f, 0x74, 0x6f, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+}
+
+var (
+	file_inventory_proto_rawDescOnce sync.Once
+	file_inventory_proto_rawDescData = file_inventory_proto_rawDesc
+)
+
+func file_inventory_proto_rawDescGZIP() []byte {
+	file_inventory_proto_rawDescOnce.Do(func() {
+		file_inventory_proto_rawDescData = protoimpl.X.CompressGZIP(file_inventory_proto_rawDescData)
+	})
+	return file_inventory_proto_rawDescData
+}
+
+var file_inventory_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_inventory_proto_goTypes = []any{
+	(*StockRequest)(nil),  // 0: inventory.StockRequest
+	(*StockResponse)(nil), // 1: inventory.StockResponse
+}
+var file_inventory_proto_depIdxs = []int32{
+	0, // 0: inventory.InventoryService.CheckStock:input_type -> inventory.StockRequest
+	1, // 1: inventory.InventoryService.CheckStock:output_type -> inventory.StockResponse
+	1, // [1:2] is the sub-list for method output_type
+	0, // [0:1] is the sub-list for method input_type
+	0, // [0:0] is the sub-list for extension type_name
+	0, // [0:0] is the sub-list for extension extendee
+	0, // [0:0] is the sub-list for field type_name
+}
+
+func init() { file_inventory_proto_init() }
+func file_inventory_proto_init() {
+	if File_inventory_proto != nil {
+		return
+	}
+	type x struct{}
+	out := protoimpl.TypeBuilder{
+		File: protoimpl.DescBuilder{
+			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
+			RawDescriptor: file_inventory_proto_rawDesc,
+			NumEnums:      0,
+			NumMessages:   2,
+			NumExtensions: 0,
+			NumServices:   1,
+		},
+		GoTypes:           file_inventory_proto_goTypes,
+		DependencyIndexes: file_inventory_proto_depIdxs,
+		MessageInfos:      file_inventory_proto_msgTypes,
+	}.Build()
+	File_inventory_proto = out.File
+	file_inventory_proto_rawDesc = nil
+	file_inventory_proto_goTypes = nil
+	file_inventory_proto_depIdxs = nil
+}
+
+
+---
+./inventory-service/proto/inventory_grpc.pb.go
+---
+// Code generated by protoc-gen-go-grpc. DO NOT EDIT.
+// versions:
+// - protoc-gen-go-grpc v1.5.1
+// - protoc             v5.28.2
+// source: inventory.proto
+
+package proto
+
+import (
+	context "context"
+	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
+)
+
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the grpc package it is being compiled against.
+// Requires gRPC-Go v1.64.0 or later.
+const _ = grpc.SupportPackageIsVersion9
+
+const (
+	InventoryService_CheckStock_FullMethodName = "/inventory.InventoryService/CheckStock"
+)
+
+// InventoryServiceClient is the client API for InventoryService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type InventoryServiceClient interface {
+	CheckStock(ctx context.Context, in *StockRequest, opts ...grpc.CallOption) (*StockResponse, error)
+}
+
+type inventoryServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewInventoryServiceClient(cc grpc.ClientConnInterface) InventoryServiceClient {
+	return &inventoryServiceClient{cc}
+}
+
+func (c *inventoryServiceClient) CheckStock(ctx context.Context, in *StockRequest, opts ...grpc.CallOption) (*StockResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(StockResponse)
+	err := c.cc.Invoke(ctx, InventoryService_CheckStock_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// InventoryServiceServer is the server API for InventoryService service.
+// All implementations must embed UnimplementedInventoryServiceServer
+// for forward compatibility.
+type InventoryServiceServer interface {
+	CheckStock(context.Context, *StockRequest) (*StockResponse, error)
+	mustEmbedUnimplementedInventoryServiceServer()
+}
+
+// UnimplementedInventoryServiceServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedInventoryServiceServer struct{}
+
+func (UnimplementedInventoryServiceServer) CheckStock(context.Context, *StockRequest) (*StockResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CheckStock not implemented")
+}
+func (UnimplementedInventoryServiceServer) mustEmbedUnimplementedInventoryServiceServer() {}
+func (UnimplementedInventoryServiceServer) testEmbeddedByValue()                          {}
+
+// UnsafeInventoryServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to InventoryServiceServer will
+// result in compilation errors.
+type UnsafeInventoryServiceServer interface {
+	mustEmbedUnimplementedInventoryServiceServer()
+}
+
+func RegisterInventoryServiceServer(s grpc.ServiceRegistrar, srv InventoryServiceServer) {
+	// If the following call pancis, it indicates UnimplementedInventoryServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&InventoryService_ServiceDesc, srv)
+}
+
+func _InventoryService_CheckStock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StockRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InventoryServiceServer).CheckStock(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: InventoryService_CheckStock_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InventoryServiceServer).CheckStock(ctx, req.(*StockRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// InventoryService_ServiceDesc is the grpc.ServiceDesc for InventoryService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var InventoryService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "inventory.InventoryService",
+	HandlerType: (*InventoryServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "CheckStock",
+			Handler:    _InventoryService_CheckStock_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "inventory.proto",
+}
+
+
+---
+./proto/inventory.proto
+---
+syntax = "proto3";
+
+package inventory;
+option go_package = "./proto";
+
+service InventoryService {
+    rpc CheckStock(StockRequest) returns (StockResponse) {}
+}
+
+message StockRequest {
+    string product_id = 1;
+}
+
+message StockResponse {
+    string product_id = 1;
+    int32 quantity = 2;
+    bool in_stock = 3;
+}
+
+---
+./k8s/deployment.yml
+---
+
+
+---

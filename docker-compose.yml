@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  inventory-service:
+    build:
+      context: ./inventory-service
+      dockerfile: Dockerfile
+      args:
+      - GRPC_PORT=50051
+    container_name: inventory-service
+    env_file:
+      - ./inventory-service/.env
+    ports:
+      - 50051:50051
+    networks:
+      - microservices-network
+    restart: always
+
+  product-service:
+    build:
+      context: ./product-service
+      dockerfile: Dockerfile
+      args:
+      - SERVER_PORT=8081
+    container_name: product-service
+    env_file:
+      - ./product-service/.env
+    ports:
+      - 8081:8081
+    networks:
+      - microservices-network
+    depends_on:
+      - inventory-service
+    restart: always
+
+  order-service:
+    build:
+      context: ./order-service
+      dockerfile: Dockerfile
+      args:
+      - SERVER_PORT=8082
+    container_name: order-service
+    env_file:
+      - ./order-service/.env
+    ports:
+      - 8082:8082
+    networks:
+      - microservices-network
+    restart: always
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+      args:
+      - SERVER_PORT=8080
+    container_name: api-gateway
+    env_file:
+      - ./api-gateway/.env
+    ports:
+      - 8080:8080
+    networks:
+      - microservices-network
+    depends_on:
+      - product-service
+      - order-service
+    restart: always
+    
+    
+
+networks:
+  microservices-network:
+    driver: bridge

@@ -1,0 +1,35 @@
+# Binaries and build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+bin/
+dist/
+# Go specific
+vendor/
+*.pb.go
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# But keep examples
+!.env.example
+
+# Service-specific generated files
+*/proto/*.pb.go
