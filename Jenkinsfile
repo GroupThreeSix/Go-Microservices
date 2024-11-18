@@ -153,7 +153,7 @@ def deployService(String serviceName) {
             
             # Generate deployment files
             mkdir -p generated-k8s
-            envsubst < k8s/${serviceName}-services.yaml > generated-k8s/${serviceName}.yaml
+            envsubst < k8s/${serviceName}.yaml > generated-k8s/${serviceName}.yaml
             
             # Apply Kubernetes configurations
             kubectl apply -f k8s/services.yaml
