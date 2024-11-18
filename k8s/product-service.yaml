@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: product-service
-        image: tuilakhanh/product-service:latest
+        image: ${DOCKER_REGISTRY}/product-service:${BUILD_TAG}
         imagePullPolicy: Always
         ports:
         - containerPort: 8081

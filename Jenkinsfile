@@ -111,11 +111,11 @@ pipeline {
             }
         }
         
-        // stage('Verify Deployments') {
-        //     steps {
-        //         verifyDeployments()
-        //     }
-        // }
+        stage('Verify Deployments') {
+            steps {
+                verifyDeployments()
+            }
+        }
     }
     
     post {
