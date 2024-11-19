@@ -8,6 +8,8 @@ pipeline {
         KUBE_CONTEXT_NAME = 'minikube'
         KUBE_SERVER_URL = 'https://192.168.39.206:8443'
         REPORT_DIR = 'reports'
+        SONAR_PROJECT_BASE_DIR = '.'
+        SONAR_SCANNER_OPTS = '-Xmx2048m'
     }
     
     agent any
@@ -18,8 +20,7 @@ pipeline {
                 sh '''
                     chmod +x scripts/gen-proto.sh
                     ./scripts/gen-proto.sh
-                '''
-            }
+                '''            }
         }
         
         stage('Lint') {
@@ -46,6 +47,36 @@ pipeline {
                     unhealthy: 100,
                     minimumSeverity: 'WARNING'
                 )
+            }
+        }
+        
+        stage('SonarQube Analysis') {
+            steps {
+                script {
+                    def scannerHome = tool 'SonarScanner'
+                    withSonarQubeEnv('sq1') {
+                        def services = ['product-service', 'inventory-service', 'order-service', 'api-gateway']
+                        services.each { service ->
+                            dir(service) {
+                                sh """
+                                    ${scannerHome}/bin/sonar-scanner \
+                                    -Dsonar.projectKey=${service} \
+                                    -Dsonar.projectName=${service} \
+                                    -Dsonar.sources=. \
+                                    -Dsonar.exclusions=**/*_test.go,**/vendor/**,**/proto/** \
+                                    -Dsonar.go.coverage.reportPaths=coverage.out \
+                                    -Dsonar.go.tests.reportPaths=test-report.json
+                                """
+                            }
+                        }
+                    }
+                    timeout(time: 2, unit: 'MINUTES') {
+                        def qg = waitForQualityGate()
+                        if (qg.status != 'OK') {
+                            error "Pipeline aborted due to quality gate failure: ${qg.status}"
+                        }
+                    }
+                }
             }
         }
         
