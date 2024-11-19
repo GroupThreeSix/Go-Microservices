@@ -2,12 +2,12 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"inventory-service/config"
 	"inventory-service/proto"
 	"log"
 	"net"
-	"errors"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
@@ -25,49 +25,49 @@ var inventory = map[string]int32{
 }
 
 func (s *server) CheckStock(ctx context.Context, req *proto.StockRequest) (*proto.StockResponse, error) {
-    quantity := inventory[req.ProductId]
-    return &proto.StockResponse{
-        ProductId: req.ProductId,
-        Quantity:  quantity,
-        InStock:   quantity > 0,
-    }, nil
+	quantity := inventory[req.ProductId]
+	return &proto.StockResponse{
+		ProductId: req.ProductId,
+		Quantity:  quantity,
+		InStock:   quantity > 0,
+	}, nil
 }
 
 func (s *server) UpdateStock(ctx context.Context, req *proto.UpdateStockRequest) (*proto.StockResponse, error) {
-    if _, exists := inventory[req.ProductId]; !exists {
-        return nil, errors.New("product not found")
-    }
-    
-    inventory[req.ProductId] = req.Quantity
-    return &proto.StockResponse{
-        ProductId: req.ProductId,
-        Quantity:  req.Quantity,
-        InStock:   req.Quantity > 0,
-    }, nil
+	if _, exists := inventory[req.ProductId]; !exists {
+		return nil, errors.New("product not found")
+	}
+
+	inventory[req.ProductId] = req.Quantity
+	return &proto.StockResponse{
+		ProductId: req.ProductId,
+		Quantity:  req.Quantity,
+		InStock:   req.Quantity > 0,
+	}, nil
 }
 
 func (s *server) AddStock(ctx context.Context, req *proto.AddStockRequest) (*proto.StockResponse, error) {
-    inventory[req.ProductId] = req.Quantity
-    return &proto.StockResponse{
-        ProductId: req.ProductId,
-        Quantity:  req.Quantity,
-        InStock:   req.Quantity > 0,
-    }, nil
+	inventory[req.ProductId] = req.Quantity
+	return &proto.StockResponse{
+		ProductId: req.ProductId,
+		Quantity:  req.Quantity,
+		InStock:   req.Quantity > 0,
+	}, nil
 }
 
 func (s *server) DeleteStock(ctx context.Context, req *proto.StockRequest) (*proto.DeleteResponse, error) {
-    if _, exists := inventory[req.ProductId]; !exists {
-        return &proto.DeleteResponse{
-            Success: false,
-            Message: "product not found",
-        }, nil
-    }
-    
-    delete(inventory, req.ProductId)
-    return &proto.DeleteResponse{
-        Success: true,
-        Message: "stock deleted successfully",
-    }, nil
+	if _, exists := inventory[req.ProductId]; !exists {
+		return &proto.DeleteResponse{
+			Success: false,
+			Message: "product not found",
+		}, nil
+	}
+
+	delete(inventory, req.ProductId)
+	return &proto.DeleteResponse{
+		Success: true,
+		Message: "stock deleted successfully",
+	}, nil
 }
 
 func main() {
