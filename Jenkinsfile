@@ -54,8 +54,10 @@ pipeline {
             steps {
                 script {
                     def scannerHome = tool 'SonarScanner'
+                    def services = ['product-service', 'inventory-service', 'order-service', 'api-gateway']
+                    
+                    // Run all analyses first
                     withSonarQubeEnv('sq1') {
-                        def services = ['product-service', 'inventory-service', 'order-service', 'api-gateway']
                         services.each { service ->
                             dir(service) {
                                 sh """
@@ -65,15 +67,21 @@ pipeline {
                                     -Dsonar.sources=. \
                                     -Dsonar.exclusions=**/*_test.go,**/vendor/**,**/proto/** \
                                     -Dsonar.go.coverage.reportPaths=coverage.out \
-                                    -Dsonar.go.tests.reportPaths=test-report.json
+                                    -Dsonar.go.tests.reportPaths=test-report.json \
+                                    -Dsonar.qualitygate.wait=false
                                 """
                             }
                         }
                     }
-                    timeout(time: 2, unit: 'MINUTES') {
-                        def qg = waitForQualityGate()
-                        if (qg.status != 'OK') {
-                            error "Pipeline aborted due to quality gate failure: ${qg.status}"
+                    
+                    // Then wait for all quality gates
+                    timeout(time: 5, unit: 'MINUTES') {
+                        services.each { service ->
+                            def qg = waitForQualityGate projectKey: service
+                            if (qg.status != 'OK') {
+                                error "Quality gate failed for ${service}: ${qg.status}"
+                            }
+                            echo "Quality gate passed for ${service}"
                         }
                     }
                 }
