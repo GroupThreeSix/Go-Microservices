@@ -7,6 +7,7 @@ pipeline {
         KUBE_CLUSTER_NAME = 'minikube'
         KUBE_CONTEXT_NAME = 'minikube'
         KUBE_SERVER_URL = 'https://192.168.39.206:8443'
+        REPORT_DIR = 'reports'
     }
     
     agent any
@@ -18,6 +19,33 @@ pipeline {
                     chmod +x scripts/gen-proto.sh
                     ./scripts/gen-proto.sh
                 '''
+            }
+        }
+        
+        stage('Lint') {
+            steps {
+                script {
+                    sh "mkdir -p ${REPORT_DIR}"
+                    
+                    def services = ['product-service', 'inventory-service', 'order-service', 'api-gateway']
+                    services.each { service ->
+                        dir(service) {
+                            sh """
+                                golangci-lint run --out-format checkstyle ./... > ../${REPORT_DIR}/${service}-lint.xml || true
+                            """
+                        }
+                    }
+                }
+                
+                recordIssues(
+                    tools: [
+                        checkStyle(pattern: "${REPORT_DIR}/*-lint.xml", reportEncoding: 'UTF-8')
+                    ],
+                    qualityGates: [[threshold: 100, type: 'TOTAL', unstable: true]],
+                    healthy: 50,
+                    unhealthy: 100,
+                    minimumSeverity: 'WARNING'
+                )
             }
         }
         
