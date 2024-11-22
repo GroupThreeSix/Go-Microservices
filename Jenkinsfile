@@ -214,17 +214,19 @@ def buildAndPushImage(String serviceName) {
 def deployService(String serviceName) {
     withKubeConfig(clusterName: KUBE_CLUSTER_NAME, contextName: KUBE_CONTEXT_NAME, credentialsId: KUBE_CONFIG_ID, serverUrl: KUBE_SERVER_URL) {
         sh """
-            # Create namespace if not exists
-            kubectl apply -f k8s/namespace.yml
-            kubectl apply -f k8s/config.yaml
+            # First time setup - apply base resources if they don't exist
+            kubectl apply -f k8s/base/namespace.yml || true
+            kubectl apply -f k8s/base/config.yaml || true
+            kubectl apply -f k8s/base/services.yaml || true
             
-            # Generate deployment files
-            mkdir -p generated-k8s
-            envsubst < k8s/${serviceName}.yaml > generated-k8s/${serviceName}.yaml
+            # Update only the specific service
+            cd k8s/overlay/services/${serviceName}
             
-            # Apply Kubernetes configurations
-            kubectl apply -f k8s/services.yaml
-            kubectl apply -f generated-k8s/${serviceName}.yaml
+            # Update the image tag in kustomization.yaml
+            kustomize edit set image ${serviceName}=${DOCKER_REGISTRY}/${serviceName}:${BUILD_TAG}
+            
+            # Apply changes only for this service
+            kustomize build . | kubectl apply -f -
             
             # Wait for deployment
             kubectl -n microservices rollout status deployment/${serviceName}
