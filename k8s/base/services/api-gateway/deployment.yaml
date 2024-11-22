@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: api-gateway
-        image: ${DOCKER_REGISTRY}/api-gateway:${BUILD_TAG}
+        image: tuilakhanh
         imagePullPolicy: Always
         ports:
         - containerPort: 8083

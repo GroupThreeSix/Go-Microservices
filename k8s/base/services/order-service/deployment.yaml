@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: order-service
-        image: ${DOCKER_REGISTRY}/order-service:${BUILD_TAG}
+        image: order-service
         ports:
         - containerPort: 8082
         resources:

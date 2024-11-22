@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: inventory-service
-        image: ${DOCKER_REGISTRY}/inventory-service:${BUILD_TAG}
+        image: inventory-service
         imagePullPolicy: Always
         ports:
         - containerPort: 50051

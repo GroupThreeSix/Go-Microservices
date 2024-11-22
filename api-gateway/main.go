@@ -43,7 +43,6 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
 		"service": "api-gateway",
 	})
 }
-
 func handleProduct(w http.ResponseWriter, r *http.Request) {
 	// Using the service name defined in docker-compose
 	productServiceURL, _ := url.Parse(cfg.ProductServiceURL)

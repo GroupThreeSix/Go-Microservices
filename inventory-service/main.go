@@ -69,7 +69,6 @@ func (s *server) DeleteStock(ctx context.Context, req *proto.StockRequest) (*pro
 		Message: "stock deleted successfully",
 	}, nil
 }
-
 func main() {
 	//Load configuration
 	cfg, err := config.LoadConfig()

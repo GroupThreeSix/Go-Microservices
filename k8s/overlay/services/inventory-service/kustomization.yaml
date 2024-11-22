@@ -6,5 +6,3 @@ resources:
 
 images:
 - name: inventory-service
-  newName: tuilakhanh/inventory-service
-  newTag: latest

@@ -6,5 +6,3 @@ resources:
 
 images:
 - name: order-service
-  newName: tuilakhanh/order-service
-  newTag: latest

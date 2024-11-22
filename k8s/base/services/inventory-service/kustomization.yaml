@@ -7,8 +7,3 @@ resources:
 
 commonLabels:
   app: inventory-service
-
-images:
-- name: inventory-service
-  newName: tuilakhanh/inventory-service
-  newTag: latest

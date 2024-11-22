@@ -7,8 +7,3 @@ resources:
 
 commonLabels:
   app: order-service
-
-images:
-- name: order-service
-  newName: tuilakhanh/order-service
-  newTag: latest
