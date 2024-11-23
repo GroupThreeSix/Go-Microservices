@@ -224,9 +224,9 @@ def deployService(String serviceName) {
             
             # Update the image tag in kustomization.yaml
             kustomize edit set image ${serviceName}=${DOCKER_REGISTRY}/${serviceName}:${BUILD_TAG}
-            
+             
             # Apply changes only for this service
-            kustomize build . | kubectl apply -f -
+            kubectl apply -k .
             
             # Wait for deployment
             kubectl -n microservices rollout status deployment/${serviceName}
