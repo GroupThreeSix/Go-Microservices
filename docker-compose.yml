@@ -60,7 +60,7 @@ services:
     env_file:
       - ./api-gateway/.env
     ports:
-      - 8083:8083
+      - 8080:8080
     networks:
       - microservices-network
     depends_on:
