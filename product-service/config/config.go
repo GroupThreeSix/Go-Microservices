@@ -7,6 +7,8 @@ type Config struct {
 	ServerHost           string `env:"SERVER_HOST" envDefault:"0.0.0.0"`
 	InventoryServiceHost string `env:"INVENTORY_SERVICE_HOST" envDefault:"inventory-service"`
 	InventoryServicePort string `env:"INVENTORY_SERVICE_PORT" envDefault:"50051"`
+	GrpcHost             string `env:"GRPC_HOST" envDefault:"0.0.0.0"`
+	GrpcPort             string `env:"GRPC_PORT" envDefault:"50052"`
 	AppEnv               string `env:"APP_ENV" envDefault:"development"`
 	LogLevel             string `env:"LOG_LEVEL" envDefault:"info"`
 }

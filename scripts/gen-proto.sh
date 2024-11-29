@@ -3,6 +3,7 @@
 # Create proto directories if they don't exist
 mkdir -p product-service/proto
 mkdir -p inventory-service/proto
+mkdir -p order-service/proto
 
 # Generate proto files
 make proto

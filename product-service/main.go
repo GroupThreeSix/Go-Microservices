@@ -7,8 +7,16 @@ import (
 	"log"
 	"net/http"
 	"product-service/config"
-	"product-service/proto"
+	"net"
+
+	// "product-service/proto"
 	"time"
+
+	inventory_pb "product-service/proto/inventory"
+	order_product_pb "product-service/proto/orderproduct"
+	product_grpc "product-service/grpc"
+	"product-service/model"
+	// "product-service/proto/orderproduct"
 
 	"github.com/gorilla/mux"
 	"google.golang.org/grpc"
@@ -23,8 +31,8 @@ type Product struct {
 	Quantity int32   `json:"quantity"`
 }
 
-var products []Product
-var inventoryClient proto.InventoryServiceClient
+var products []model.Product
+var inventoryClient inventory_pb.InventoryServiceClient
 
 func main() {
 	// Load configuration
@@ -32,6 +40,7 @@ func main() {
 	if err != nil {
 		log.Fatal("Cannot load config:", err)
 	}
+	
 
 	// Set up gRPC connection to inventory service
 	inventoryAddr := fmt.Sprintf("%s:%s",
@@ -43,7 +52,7 @@ func main() {
 		log.Fatalf("failed to connect: %v", err)
 	}
 	defer conn.Close()
-	inventoryClient = proto.NewInventoryServiceClient(conn)
+	inventoryClient = inventory_pb.NewInventoryServiceClient(conn)
 
 	router := mux.NewRouter()
 
@@ -51,9 +60,28 @@ func main() {
 	router.HandleFunc("/health", healthCheck).Methods("GET")
 
 	// Sample data
-	products = append(products, Product{ID: "1", Name: "Laptop", Price: 999.99})
-	products = append(products, Product{ID: "2", Name: "Mouse", Price: 29.99})
+	products = append(products, model.Product{ID: "1", Name: "Laptop", Price: 999.99})
+	products = append(products, model.Product{ID: "2", Name: "Mouse", Price: 29.99})
 
+	// Start gRPC server
+	grpcAddr := fmt.Sprintf("%s:%s", cfg.GrpcHost, cfg.GrpcPort)
+
+	lis, err := net.Listen("tcp", grpcAddr)
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+
+	ser := product_grpc.NewServer(inventoryClient ,products)
+	grpcServer := grpc.NewServer()
+	order_product_pb.RegisterOrderProductServiceServer(grpcServer, ser)
+	go func() {
+		log.Printf("Starting gRPC server on %s", grpcAddr)
+		if err := grpcServer.Serve(lis); err != nil {
+			log.Fatalf("failed to serve gRPC: %v", err)
+		}
+	}()
+
+	// HTTP Endpoint
 	router.HandleFunc("/products", GetProducts).Methods("GET")
     router.HandleFunc("/products/{id}", GetProduct).Methods("GET")
     router.HandleFunc("/products", CreateProduct).Methods("POST")
@@ -82,7 +110,7 @@ func GetProducts(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 
-		resp, err := inventoryClient.CheckStock(ctx, &proto.StockRequest{ProductId: product.ID})
+		resp, err := inventoryClient.CheckStock(ctx, &inventory_pb.StockRequest{ProductId: product.ID})
 		if err != nil {
 			log.Printf("Error checking stock for product %s: %v", product.ID, err)
 			continue
@@ -109,7 +137,7 @@ func GetProduct(w http.ResponseWriter, r *http.Request) {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 			defer cancel()
 
-			resp, err := inventoryClient.CheckStock(ctx, &proto.StockRequest{ProductId: item.ID})
+			resp, err := inventoryClient.CheckStock(ctx, &inventory_pb.StockRequest{ProductId: item.ID})
 			if err != nil {
 				log.Printf("Error checking stock for product %s: %v", params["id"], err)
 			}
@@ -132,14 +160,14 @@ func GetProduct(w http.ResponseWriter, r *http.Request) {
 
 func CreateProduct(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "application/json")
-    var product Product
+    var product model.Product
     json.NewDecoder(r.Body).Decode(&product)
 
     // Add to inventory
     ctx, cancel := context.WithTimeout(context.Background(), time.Second)
     defer cancel()
     
-    _, err := inventoryClient.AddStock(ctx, &proto.AddStockRequest{
+    _, err := inventoryClient.AddStock(ctx, &inventory_pb.AddStockRequest{
         ProductId: product.ID,
         Quantity: product.Quantity,
     })
@@ -155,7 +183,7 @@ func CreateProduct(w http.ResponseWriter, r *http.Request) {
 func UpdateProduct(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "application/json")
     params := mux.Vars(r)
-    var updatedProduct Product
+    var updatedProduct model.Product
     json.NewDecoder(r.Body).Decode(&updatedProduct)
 
     for i, item := range products {
@@ -164,7 +192,7 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
             ctx, cancel := context.WithTimeout(context.Background(), time.Second)
             defer cancel()
             
-            _, err := inventoryClient.UpdateStock(ctx, &proto.UpdateStockRequest{
+            _, err := inventoryClient.UpdateStock(ctx, &inventory_pb.UpdateStockRequest{
                 ProductId: params["id"],
                 Quantity: updatedProduct.Quantity,
             })
@@ -191,7 +219,7 @@ func DeleteProduct(w http.ResponseWriter, r *http.Request) {
             ctx, cancel := context.WithTimeout(context.Background(), time.Second)
             defer cancel()
             
-            _, err := inventoryClient.DeleteStock(ctx, &proto.StockRequest{
+            _, err := inventoryClient.DeleteStock(ctx, &inventory_pb.StockRequest{
                 ProductId: params["id"],
             })
             if err != nil {

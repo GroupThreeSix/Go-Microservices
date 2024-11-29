@@ -22,11 +22,13 @@ services:
       dockerfile: Dockerfile
       args:
       - SERVER_PORT=8081
+      - GRPC_PORT=50052
     container_name: product-service
     env_file:
       - ./product-service/.env
     ports:
       - 8081:8081
+      - 50052:50052
     networks:
       - microservices-network
     depends_on:
