@@ -1,6 +1,12 @@
 name: CI Pipeline
 
 on:
+  workflow_dispatch:  # Manual trigger
+    inputs:
+      build_all:
+        description: 'Build all services'
+        type: boolean
+        default: true
   push:
     branches: [ master ]
     paths:
@@ -94,18 +100,27 @@ jobs:
             docker push ${{ secrets.REGISTRY }}/$service:latest
           }
           
-          if [ "${{ needs.detect-changes.outputs.product-service }}" == "true" ]; then
+          # Build all services if manually triggered, otherwise only build changed services
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "Building all services..."
             build_and_push_service "product-service"
-          fi
-          
-          if [ "${{ needs.detect-changes.outputs.inventory-service }}" == "true" ]; then
             build_and_push_service "inventory-service"
-          fi
-          
-          if [ "${{ needs.detect-changes.outputs.order-service }}" == "true" ]; then
             build_and_push_service "order-service"
-          fi
-          
-          if [ "${{ needs.detect-changes.outputs.api-gateway }}" == "true" ]; then
             build_and_push_service "api-gateway"
+          else
+            if [ "${{ needs.detect-changes.outputs.product-service }}" == "true" ]; then
+              build_and_push_service "product-service"
+            fi
+            
+            if [ "${{ needs.detect-changes.outputs.inventory-service }}" == "true" ]; then
+              build_and_push_service "inventory-service"
+            fi
+            
+            if [ "${{ needs.detect-changes.outputs.order-service }}" == "true" ]; then
+              build_and_push_service "order-service"
+            fi
+            
+            if [ "${{ needs.detect-changes.outputs.api-gateway }}" == "true" ]; then
+              build_and_push_service "api-gateway"
+            fi
           fi
