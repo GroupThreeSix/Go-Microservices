@@ -1,0 +1,112 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'product-service/**'
+      - 'inventory-service/**'
+      - 'order-service/**'
+      - 'api-gateway/**'
+      - 'proto/**'
+  pull_request:
+    branches: [ master ]
+    paths:
+      - 'product-service/**'
+      - 'inventory-service/**'
+      - 'order-service/**'
+      - 'api-gateway/**'
+      - 'proto/**'
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      product-service: ${{ steps.filter.outputs.product-service }}
+      inventory-service: ${{ steps.filter.outputs.inventory-service }}
+      order-service: ${{ steps.filter.outputs.order-service }}
+      api-gateway: ${{ steps.filter.outputs.api-gateway }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            product-service:
+              - 'product-service/**'
+              - 'proto/**'
+            inventory-service:
+              - 'inventory-service/**'
+              - 'proto/**'
+            order-service:
+              - 'order-service/**'
+              - 'proto/**'
+            api-gateway:
+              - 'api-gateway/**'
+              - 'proto/**'
+
+  build-and-test:
+    needs: detect-changes
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+       name: Set up Protobuf Go GRPC
+        run: |
+          apt-get update && apt-get install -y protobuf-compiler
+
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
+      - name: Generate Protobuf
+        run: |
+          chmod +x scripts/gen-proto.sh
+          ./scripts/gen-proto.sh
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Build and Push Changed Services
+        run: |
+          BUILD_TAG="${GITHUB_SHA::7}"
+          
+          build_and_push_service() {
+            local service=$1
+            echo "Building $service..."
+            docker build -t ${{ secrets.REGISTRY }}/$service:$BUILD_TAG $service
+            docker push ${{ secrets.REGISTRY }}/$service:$BUILD_TAG
+            docker tag ${{ secrets.REGISTRY }}/$service:$BUILD_TAG ${{ secrets.REGISTRY }}/$service:latest
+            docker push ${{ secrets.REGISTRY }}/$service:latest
+          }
+          
+          if [ "${{ needs.detect-changes.outputs.product-service }}" == "true" ]; then
+            build_and_push_service "product-service"
+          fi
+          
+          if [ "${{ needs.detect-changes.outputs.inventory-service }}" == "true" ]; then
+            build_and_push_service "inventory-service"
+          fi
+          
+          if [ "${{ needs.detect-changes.outputs.order-service }}" == "true" ]; then
+            build_and_push_service "order-service"
+          fi
+          
+          if [ "${{ needs.detect-changes.outputs.api-gateway }}" == "true" ]; then
+            build_and_push_service "api-gateway"
+          fi
