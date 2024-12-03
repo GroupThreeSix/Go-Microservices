@@ -24,6 +24,9 @@ on:
       - 'api-gateway/**'
       - 'proto/**'
 
+env:
+  BUILD_TAG: ${{ github.sha }}
+
 jobs:
   detect-changes:
     runs-on: ubuntu-latest
@@ -89,16 +92,20 @@ jobs:
           password: ${{ secrets.REGISTRY_TOKEN }}
 
       - name: Build and Push Changed Services
-        run: |
-          BUILD_TAG="${GITHUB_SHA::7}"
-          
+        run: |          
           build_and_push_service() {
             local service=$1
             echo "Building $service..."
-            docker build -t ${{ secrets.REGISTRY }}/$service:$BUILD_TAG $service
-            docker push ${{ secrets.REGISTRY }}/$service:$BUILD_TAG
-            docker tag ${{ secrets.REGISTRY }}/$service:$BUILD_TAG ${{ secrets.REGISTRY }}/$service:latest
-            docker push ${{ secrets.REGISTRY }}/$service:latest
+            
+            # Use buildx with caching
+            docker buildx build \
+              --cache-from=type=gha,scope=$service \
+              --cache-to=type=gha,mode=max,scope=$service \
+              --platform linux/amd64 \
+              -t ${{ secrets.REGISTRY }}/$service:${BUILD_TAG::7} \
+              -t ${{ secrets.REGISTRY }}/$service:latest \
+              --push \
+              $service
           }
           
           # Build all services if manually triggered, otherwise only build changed services
