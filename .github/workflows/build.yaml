@@ -188,21 +188,17 @@ jobs:
         run: |
           # Copy new manifests
           cp -r manifests/* manifest-repo/
-
-          ls manifests/
-
-          ls manifest-repo/
           
           # Commit and push changes
           cd manifest-repo
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Check if there are changes to commit
-          if git diff --quiet; then
-            echo "No changes to commit"
-            exit 0
-          fi
+          # # Check if there are changes to commit
+          # if git diff --quiet; then
+          #   echo "No changes to commit"
+          #   exit 0
+          # fi
           
           git add .
           git commit -m "Update manifests for ${GITHUB_SHA::7}"
