@@ -48,6 +48,7 @@ func main() {
 	// Add health check endpoint
 	router.HandleFunc("/health", healthCheck).Methods("GET")
 	// Routes
+	router.HandleFunc("/orders", GetOrders).Methods("GET")
     router.HandleFunc("/orders/{id}", GetOrder).Methods("GET")
     router.HandleFunc("/orders", CreateOrder).Methods("POST")
     router.HandleFunc("/orders/{id}", UpdateOrder).Methods("PUT")
