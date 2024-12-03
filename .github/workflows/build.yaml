@@ -188,6 +188,10 @@ jobs:
         run: |
           # Copy new manifests
           cp -r manifests/* manifest-repo/
+
+          ls manifests/
+
+          ls manifest-repo/
           
           # Commit and push changes
           cd manifest-repo
