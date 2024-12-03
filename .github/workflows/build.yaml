@@ -132,3 +132,74 @@ jobs:
               build_and_push_service "api-gateway"
             fi
           fi
+
+      - name: Setup Kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+      
+      - name: Generate K8s manifests
+        run: |
+          update_service_manifest() {
+            local service=$1
+            echo "Generating manifests for $service..."
+            
+            cd k8s/overlay/services/$service
+            kustomize edit set image $service=${{ secrets.REGISTRY }}/$service:${BUILD_TAG::7}
+            
+            mkdir ../../../../manifests/$service
+
+            kustomize build . > ../../../../manifests/$service/manifest.yaml
+            cd ../../../../
+          }
+          
+          mkdir -p manifests
+          
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            for service in product-service inventory-service order-service api-gateway; do
+              update_service_manifest $service
+            done
+          else
+            if [ "${{ needs.detect-changes.outputs.product-service }}" == "true" ]; then
+              update_service_manifest "product-service"
+            fi
+            
+            if [ "${{ needs.detect-changes.outputs.inventory-service }}" == "true" ]; then
+              update_service_manifest "inventory-service"
+            fi
+            
+            if [ "${{ needs.detect-changes.outputs.order-service }}" == "true" ]; then
+              update_service_manifest "order-service"
+            fi
+            
+            if [ "${{ needs.detect-changes.outputs.api-gateway }}" == "true" ]; then
+              update_service_manifest "api-gateway"
+            fi
+          fi
+
+      - name: Checkout manifests repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.MANIFEST_REPO }}
+          token: ${{ secrets.PAT }}
+          path: manifest-repo
+
+      - name: Update manifests
+        run: |
+          # Copy new manifests
+          cp -r manifests/* manifest-repo/
+          
+          # Commit and push changes
+          cd manifest-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Check if there are changes to commit
+          if git diff --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          
+          git add .
+          git commit -m "Update manifests for ${GITHUB_SHA::7}"
+          git push
