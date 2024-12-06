@@ -1,0 +1,27 @@
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: product-service-route
+  namespace: microservices
+spec:
+  hosts:
+    - "*"
+  gateways:
+    - api-gateway
+  http:
+  - match:
+    - uri:
+        prefix: "/products"
+    route:
+    - destination:
+        host: product-service
+        port:
+          number: 8081
+  - match:
+    - uri:
+        prefix: "/orders"
+    route:
+    - destination:
+        host: order-service
+        port:
+          number: 8082
