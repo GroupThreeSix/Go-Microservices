@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: product-service
-  namespace: microservices
+  namespace: flux-system
   labels:
     app: product-service
 spec:
@@ -49,13 +49,3 @@ spec:
           value: "inventory-service"
         - name: INVENTORY_SERVICE_PORT
           value: "50051"
-        - name: APP_ENV
-          valueFrom:
-            configMapKeyRef:
-              name: microservices-config
-              key: ENVIRONMENT
-        - name: LOG_LEVEL
-          valueFrom:
-            configMapKeyRef:
-              name: microservices-config
-              key: LOG_LEVEL

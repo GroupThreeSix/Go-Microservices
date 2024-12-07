@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: inventory-service
-  namespace: microservices
+  namespace: flux-system
   labels:
     app: inventory-service
 spec:
@@ -43,14 +43,4 @@ spec:
           value: "50051"
         - name: GRPC_HOST
           value: "0.0.0.0"
-        - name: APP_ENV
-          valueFrom:
-            configMapKeyRef:
-              name: microservices-config
-              key: ENVIRONMENT
-        - name: LOG_LEVEL
-          valueFrom:
-            configMapKeyRef:
-              name: microservices-config
-              key: LOG_LEVEL
           

@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: api-gateway
-  namespace: microservices
+  namespace: flux-system
   labels:
     app: api-gateway
 spec:
@@ -49,13 +49,3 @@ spec:
           value: "http://product-service:8081"
         - name: ORDER_SERVICE_URL
           value: "http://order-service:8082"
-        - name: APP_ENV
-          valueFrom:
-            configMapKeyRef:
-              name: microservices-config
-              key: ENVIRONMENT
-        - name: LOG_LEVEL
-          valueFrom:
-            configMapKeyRef:
-              name: microservices-config
-              key: LOG_LEVEL
