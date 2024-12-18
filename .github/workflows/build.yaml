@@ -26,6 +26,7 @@ on:
       - 'proto/**'
       - 'VERSION'
 
+permissions: write-all
 
 jobs:
   detect-changes:
