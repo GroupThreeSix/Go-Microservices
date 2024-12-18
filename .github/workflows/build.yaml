@@ -61,6 +61,21 @@ jobs:
   build-and-test:
     needs: detect-changes
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [product-service, inventory-service, order-service, api-gateway]
+        include:
+          - service: product-service
+            should_build: ${{ needs.detect-changes.outputs.product-service == 'true' }}
+          - service: inventory-service
+            should_build: ${{ needs.detect-changes.outputs.inventory-service == 'true' }}
+          - service: order-service
+            should_build: ${{ needs.detect-changes.outputs.order-service == 'true' }}
+          - service: api-gateway
+            should_build: ${{ needs.detect-changes.outputs.api-gateway == 'true' }}
+    if: |
+      github.event_name == 'workflow_dispatch' || 
+      matrix.should_build
     
     steps:
       - name: Checkout code
@@ -88,15 +103,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Install Trivy
-        uses: aquasecurity/trivy-action@master
+      - name: Manual Trivy Setup
+        uses: aquasecurity/setup-trivy@v0.2.0
         with:
-          format: 'table'
-          exit-code: '1'
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
-
+          cache: true
+          version: v0.57.1
+          
       - name: Login to Docker Registry
         uses: docker/login-action@v3
         with:
@@ -124,80 +136,61 @@ jobs:
           fi
           echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-      - name: Build and Push Changed Services
-        run: |          
-          build_and_push_service() {
-            local service=$1
-            echo "Building $service..."
-            
-            # Set up tags based on branch/environment
-            if [ "${{ github.ref }}" == "refs/heads/master" ] || [ "${{ github.event.inputs.environment }}" == "release" ]; then
-              TAGS="-t ${{ secrets.REGISTRY }}/$service:${{ steps.set-tag.outputs.image_tag }} \
-                    -t ${{ secrets.REGISTRY }}/$service:latest \
-                    -t ${{ secrets.REGISTRY }}/$service:stable"
-            else
-              TAGS="-t ${{ secrets.REGISTRY }}/$service:${{ steps.set-tag.outputs.image_tag }} \
-                    -t ${{ secrets.REGISTRY }}/$service:staging"
-            fi
-            
-            # Build image once
-            docker buildx build \
-              --cache-from=type=gha,scope=$service \
-              --cache-to=type=gha,mode=max,scope=$service \
-              --platform linux/amd64 \
-              $TAGS \
-              -t $service:scan-target \
-              --load \
-              $service
-
-            # Create results directory for this service
-            mkdir -p trivy-results
-
-            # Scan the image with Trivy and save results
-            trivy image --exit-code 0 --severity HIGH,CRITICAL \
-              --format table \
-              -o trivy-results/$service-table.txt \
-              $service:scan-target
-
-            # Generate SARIF report for GitHub Security tab
-            trivy image --exit-code 1 --severity HIGH,CRITICAL \
-              --format sarif \
-              -o trivy-results/$service-sarif.json \
-              $service:scan-target
-
-            # If scan passes, push the already built image
-            docker push ${{ secrets.REGISTRY }}/$service:${{ steps.set-tag.outputs.image_tag }}
-            if [ "${{ github.ref }}" == "refs/heads/master" ] || [ "${{ github.event.inputs.environment }}" == "release" ]; then
-              docker push ${{ secrets.REGISTRY }}/$service:latest
-              docker push ${{ secrets.REGISTRY }}/$service:stable
-            else
-              docker push ${{ secrets.REGISTRY }}/$service:staging
-            fi
-          }
-          
-          # Build all services if manually triggered, otherwise only build changed services
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "Building all services..."
-            build_and_push_service "product-service"
-            build_and_push_service "inventory-service"
-            build_and_push_service "order-service"
-            build_and_push_service "api-gateway"
+      - name: Build and Push Service
+        run: |
+          # Set up tags based on branch/environment
+          if [ "${{ github.ref }}" == "refs/heads/master" ] || [ "${{ github.event.inputs.environment }}" == "release" ]; then
+            TAGS="-t ${{ secrets.REGISTRY }}/${{ matrix.service }}:${{ steps.set-tag.outputs.image_tag }} \
+                  -t ${{ secrets.REGISTRY }}/${{ matrix.service }}:latest \
+                  -t ${{ secrets.REGISTRY }}/${{ matrix.service }}:stable"
           else
-            if [ "${{ needs.detect-changes.outputs.product-service }}" == "true" ]; then
-              build_and_push_service "product-service"
-            fi
-            
-            if [ "${{ needs.detect-changes.outputs.inventory-service }}" == "true" ]; then
-              build_and_push_service "inventory-service"
-            fi
-            
-            if [ "${{ needs.detect-changes.outputs.order-service }}" == "true" ]; then
-              build_and_push_service "order-service"
-            fi
-            
-            if [ "${{ needs.detect-changes.outputs.api-gateway }}" == "true" ]; then
-              build_and_push_service "api-gateway"
-            fi
+            TAGS="-t ${{ secrets.REGISTRY }}/${{ matrix.service }}:${{ steps.set-tag.outputs.image_tag }} \
+                  -t ${{ secrets.REGISTRY }}/${{ matrix.service }}:staging"
+          fi
+          
+          # Build image
+          docker buildx build \
+            --cache-from=type=gha,scope=${{ matrix.service }} \
+            --cache-to=type=gha,mode=max,scope=${{ matrix.service }} \
+            --platform linux/amd64 \
+            $TAGS \
+            -t ${{ matrix.service }}:scan-target \
+            --load \
+            ${{ matrix.service }}
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: '${{ matrix.service }}:scan-target'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+          output: 'trivy-results/${{ matrix.service }}-table.txt'
+          skip-setup-trivy: true
+
+      - name: Run Trivy vulnerability scanner (SARIF)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: '${{ matrix.service }}:scan-target'
+          format: 'sarif'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+          output: 'trivy-results/${{ matrix.service }}-sarif.json'
+          skip-setup-trivy: true
+
+      # Continue with image pushing
+      - name: Push Images
+        run: |
+          docker push ${{ secrets.REGISTRY }}/${{ matrix.service }}:${{ steps.set-tag.outputs.image_tag }}
+          if [ "${{ github.ref }}" == "refs/heads/master" ] || [ "${{ github.event.inputs.environment }}" == "release" ]; then
+            docker push ${{ secrets.REGISTRY }}/${{ matrix.service }}:latest
+            docker push ${{ secrets.REGISTRY }}/${{ matrix.service }}:stable
+          else
+            docker push ${{ secrets.REGISTRY }}/${{ matrix.service }}:staging
           fi
 
       - name: Upload Trivy scan results
