@@ -88,6 +88,15 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Install Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
       - name: Login to Docker Registry
         uses: docker/login-action@v3
         with:
@@ -121,28 +130,48 @@ jobs:
             local service=$1
             echo "Building $service..."
             
-            # Define tags based on branch or manual trigger
+            # Set up tags based on branch/environment
             if [ "${{ github.ref }}" == "refs/heads/master" ] || [ "${{ github.event.inputs.environment }}" == "release" ]; then
-              # For release builds (master branch or manual release)
-              docker buildx build \
-                --cache-from=type=gha,scope=$service \
-                --cache-to=type=gha,mode=max,scope=$service \
-                --platform linux/amd64 \
-                -t ${{ secrets.REGISTRY }}/$service:${{ steps.set-tag.outputs.image_tag }} \
-                -t ${{ secrets.REGISTRY }}/$service:latest \
-                -t ${{ secrets.REGISTRY }}/$service:stable \
-                --push \
-                $service
+              TAGS="-t ${{ secrets.REGISTRY }}/$service:${{ steps.set-tag.outputs.image_tag }} \
+                    -t ${{ secrets.REGISTRY }}/$service:latest \
+                    -t ${{ secrets.REGISTRY }}/$service:stable"
             else
-              # For staging builds (staging branch or manual staging)
-              docker buildx build \
-                --cache-from=type=gha,scope=$service \
-                --cache-to=type=gha,mode=max,scope=$service \
-                --platform linux/amd64 \
-                -t ${{ secrets.REGISTRY }}/$service:${{ steps.set-tag.outputs.image_tag }} \
-                -t ${{ secrets.REGISTRY }}/$service:staging \
-                --push \
-                $service
+              TAGS="-t ${{ secrets.REGISTRY }}/$service:${{ steps.set-tag.outputs.image_tag }} \
+                    -t ${{ secrets.REGISTRY }}/$service:staging"
+            fi
+            
+            # Build image once
+            docker buildx build \
+              --cache-from=type=gha,scope=$service \
+              --cache-to=type=gha,mode=max,scope=$service \
+              --platform linux/amd64 \
+              $TAGS \
+              -t $service:scan-target \
+              --load \
+              $service
+
+            # Create results directory for this service
+            mkdir -p trivy-results
+
+            # Scan the image with Trivy and save results
+            trivy image --exit-code 0 --severity HIGH,CRITICAL \
+              --format table \
+              -o trivy-results/$service-table.txt \
+              $service:scan-target
+
+            # Generate SARIF report for GitHub Security tab
+            trivy image --exit-code 1 --severity HIGH,CRITICAL \
+              --format sarif \
+              -o trivy-results/$service-sarif.json \
+              $service:scan-target
+
+            # If scan passes, push the already built image
+            docker push ${{ secrets.REGISTRY }}/$service:${{ steps.set-tag.outputs.image_tag }}
+            if [ "${{ github.ref }}" == "refs/heads/master" ] || [ "${{ github.event.inputs.environment }}" == "release" ]; then
+              docker push ${{ secrets.REGISTRY }}/$service:latest
+              docker push ${{ secrets.REGISTRY }}/$service:stable
+            else
+              docker push ${{ secrets.REGISTRY }}/$service:staging
             fi
           }
           
@@ -170,3 +199,18 @@ jobs:
               build_and_push_service "api-gateway"
             fi
           fi
+
+      - name: Upload Trivy scan results
+        if: always()  # Run even if the build fails
+        uses: actions/upload-artifact@v3
+        with:
+          name: trivy-scan-results
+          path: trivy-results/
+          retention-days: 5
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        if: always()  # Run even if the build fails
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results/*-sarif.json'
+          category: 'trivy-results'
