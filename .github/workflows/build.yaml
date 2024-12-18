@@ -15,7 +15,9 @@ on:
           - release
         default: 'staging'
   push:
-    branches: [ master ]
+    branches: 
+      - master    # Will trigger release builds
+      - staging   # Will trigger staging builds
     paths:
       - 'product-service/**'
       - 'inventory-service/**'
@@ -23,17 +25,7 @@ on:
       - 'api-gateway/**'
       - 'proto/**'
       - 'VERSION'
-  pull_request:
-    branches: [ master ]
-    paths:
-      - 'product-service/**'
-      - 'inventory-service/**'
-      - 'order-service/**'
-      - 'api-gateway/**'
-      - 'proto/**'
-      - 'VERSION'
-env:
-  BUILD_TAG: ${{ github.sha }}
+
 
 jobs:
   detect-changes:
@@ -116,7 +108,7 @@ jobs:
       - name: Set image tag
         id: set-tag
         run: |
-          if [ "${{ github.event.inputs.environment }}" == "release" ]; then
+          if [ "${{ github.ref }}" == "refs/heads/master" ] || [ "${{ github.event.inputs.environment }}" == "release" ]; then
             IMAGE_TAG="v${{ steps.version.outputs.version }}"
           else
             IMAGE_TAG="v${{ steps.version.outputs.version }}-alpha.${{ github.run_number }}"
@@ -129,9 +121,9 @@ jobs:
             local service=$1
             echo "Building $service..."
             
-            # Define tags based on environment
-            if [ "${{ github.event.inputs.environment }}" == "release" ]; then
-              # For release builds
+            # Define tags based on branch or manual trigger
+            if [ "${{ github.ref }}" == "refs/heads/master" ] || [ "${{ github.event.inputs.environment }}" == "release" ]; then
+              # For release builds (master branch or manual release)
               docker buildx build \
                 --cache-from=type=gha,scope=$service \
                 --cache-to=type=gha,mode=max,scope=$service \
@@ -142,7 +134,7 @@ jobs:
                 --push \
                 $service
             else
-              # For staging builds
+              # For staging builds (staging branch or manual staging)
               docker buildx build \
                 --cache-from=type=gha,scope=$service \
                 --cache-to=type=gha,mode=max,scope=$service \
