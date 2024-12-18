@@ -62,20 +62,17 @@ jobs:
     needs: detect-changes
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         service: [product-service, inventory-service, order-service, api-gateway]
-        include:
-          - service: product-service
-            should_build: ${{ needs.detect-changes.outputs.product-service == 'true' }}
-          - service: inventory-service
-            should_build: ${{ needs.detect-changes.outputs.inventory-service == 'true' }}
-          - service: order-service
-            should_build: ${{ needs.detect-changes.outputs.order-service == 'true' }}
-          - service: api-gateway
-            should_build: ${{ needs.detect-changes.outputs.api-gateway == 'true' }}
     if: |
-      github.event_name == 'workflow_dispatch' || 
-      matrix.should_build
+      github.event_name == 'workflow_dispatch' ||
+      (
+        matrix.service == 'product-service' && needs.detect-changes.outputs.product-service == 'true' ||
+        matrix.service == 'inventory-service' && needs.detect-changes.outputs.inventory-service == 'true' ||
+        matrix.service == 'order-service' && needs.detect-changes.outputs.order-service == 'true' ||
+        matrix.service == 'api-gateway' && needs.detect-changes.outputs.api-gateway == 'true'
+      )
     
     steps:
       - name: Checkout code
