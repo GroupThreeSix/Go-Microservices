@@ -176,10 +176,19 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: '${{ matrix.service }}:scan-target'
-          format: 'template'
-          template: '@/contrib/sarif.tpl'
+          format: sarif
           severity: 'CRITICAL,HIGH'
           output: '${{ matrix.service }}.sarif'
+          skip-setup-trivy: true
+
+      - name: Run Trivy vulnerability scanner (JSON)
+        if: steps.check.outputs.should_build == 'true'
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: '${{ matrix.service }}:scan-target'
+          format: json
+          severity: 'CRITICAL,HIGH'
+          output: '${{ matrix.service }}.json'
           skip-setup-trivy: true
 
       # Continue with image pushing
@@ -193,6 +202,13 @@ jobs:
           else
             docker push ${{ secrets.REGISTRY }}/${{ matrix.service }}:staging
           fi
+
+      - name: Upload Vulnerability Scan Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-${{ matrix.service }}
+          path: ${{ matrix.service }}.json
+          retention-days: 30
 
       - name: Upload Trivy scan results to GitHub Security tab
         if: steps.check.outputs.should_build == 'true'
