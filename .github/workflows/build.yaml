@@ -65,25 +65,33 @@ jobs:
       fail-fast: false
       matrix:
         service: [product-service, inventory-service, order-service, api-gateway]
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      (
-        matrix.service == 'product-service' && needs.detect-changes.outputs.product-service == 'true' ||
-        matrix.service == 'inventory-service' && needs.detect-changes.outputs.inventory-service == 'true' ||
-        matrix.service == 'order-service' && needs.detect-changes.outputs.order-service == 'true' ||
-        matrix.service == 'api-gateway' && needs.detect-changes.outputs.api-gateway == 'true'
-      )
     
     steps:
+      - name: Check if build needed
+        id: check
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]] || \
+             [[ "${{ matrix.service }}" == "product-service" && "${{ needs.detect-changes.outputs.product-service }}" == "true" ]] || \
+             [[ "${{ matrix.service }}" == "inventory-service" && "${{ needs.detect-changes.outputs.inventory-service }}" == "true" ]] || \
+             [[ "${{ matrix.service }}" == "order-service" && "${{ needs.detect-changes.outputs.order-service }}" == "true" ]] || \
+             [[ "${{ matrix.service }}" == "api-gateway" && "${{ needs.detect-changes.outputs.api-gateway }}" == "true" ]]; then
+            echo "should_build=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_build=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Checkout code
+        if: steps.check.outputs.should_build == 'true'
         uses: actions/checkout@v4
 
       - name: Set up Go
+        if: steps.check.outputs.should_build == 'true'
         uses: actions/setup-go@v5
         with:
           go-version: '1.23'
 
       - name: Set up Protobuf Go GRPC
+        if: steps.check.outputs.should_build == 'true'
         run: |
           sudo apt-get update && sudo apt-get install -y protobuf-compiler
 
@@ -93,20 +101,24 @@ jobs:
           echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
       - name: Generate Protobuf
+        if: steps.check.outputs.should_build == 'true'
         run: |
           chmod +x scripts/gen-proto.sh
           ./scripts/gen-proto.sh
 
       - name: Set up Docker Buildx
+        if: steps.check.outputs.should_build == 'true'
         uses: docker/setup-buildx-action@v3
 
       - name: Manual Trivy Setup
+        if: steps.check.outputs.should_build == 'true'
         uses: aquasecurity/setup-trivy@v0.2.0
         with:
           cache: true
           version: v0.57.1
           
       - name: Login to Docker Registry
+        if: steps.check.outputs.should_build == 'true'
         uses: docker/login-action@v3
         with:
           registry: ${{ secrets.REGISTRY }}
@@ -114,6 +126,7 @@ jobs:
           password: ${{ secrets.REGISTRY_TOKEN }}
 
       - name: Read version
+        if: steps.check.outputs.should_build == 'true'
         id: version
         run: |
           VERSION=$(cat VERSION)
@@ -124,6 +137,7 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Set image tag
+        if: steps.check.outputs.should_build == 'true'
         id: set-tag
         run: |
           if [ "${{ github.ref }}" == "refs/heads/master" ] || [ "${{ github.event.inputs.environment }}" == "release" ]; then
@@ -134,6 +148,7 @@ jobs:
           echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
 
       - name: Build and Push Service
+        if: steps.check.outputs.should_build == 'true'
         run: |
           # Set up tags based on branch/environment
           if [ "${{ github.ref }}" == "refs/heads/master" ] || [ "${{ github.event.inputs.environment }}" == "release" ]; then
@@ -156,6 +171,7 @@ jobs:
             ${{ matrix.service }}
 
       - name: Run Trivy vulnerability scanner
+        if: steps.check.outputs.should_build == 'true'
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: '${{ matrix.service }}:scan-target'
@@ -168,6 +184,7 @@ jobs:
           skip-setup-trivy: true
 
       - name: Run Trivy vulnerability scanner (SARIF)
+        if: steps.check.outputs.should_build == 'true'
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: '${{ matrix.service }}:scan-target'
@@ -181,6 +198,7 @@ jobs:
 
       # Continue with image pushing
       - name: Push Images
+        if: steps.check.outputs.should_build == 'true'
         run: |
           docker push ${{ secrets.REGISTRY }}/${{ matrix.service }}:${{ steps.set-tag.outputs.image_tag }}
           if [ "${{ github.ref }}" == "refs/heads/master" ] || [ "${{ github.event.inputs.environment }}" == "release" ]; then
@@ -191,7 +209,7 @@ jobs:
           fi
 
       - name: Upload Trivy scan results
-        if: always()  # Run even if the build fails
+        if: steps.check.outputs.should_build == 'true'
         uses: actions/upload-artifact@v3
         with:
           name: trivy-scan-results
@@ -199,7 +217,7 @@ jobs:
           retention-days: 5
 
       - name: Upload Trivy scan results to GitHub Security tab
-        if: always()  # Run even if the build fails
+        if: steps.check.outputs.should_build == 'true'
         uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: 'trivy-results/*-sarif.json'
